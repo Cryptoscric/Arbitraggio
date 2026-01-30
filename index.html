@@ -2,17 +2,17 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Solana Arb Sentry - File Reader Pro</title>
+    <title>Solana Arb Sentry - Final Stable</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #eee; }
-        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 0; padding: 20px; }
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
         .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 5px; border-radius: 4px; width: 70px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
         .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; }
-        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 20px var(--glow); background: #001a00; }
-        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
+        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 20px var(--glow); background: #001a00; transform: scale(1.02); }
+        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
         .pos { color: var(--glow); font-weight: bold; font-size: 1.4rem; }
         .neg { color: #ff3e3e; font-size: 1.4rem; }
         .btn { display: block; text-align: center; padding: 12px; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 6px; margin-top: 15px; font-weight: bold; }
@@ -23,14 +23,14 @@
 
 <div class="header">
     <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
-    <div id="status">Inizializzazione...</div>
+    <div id="status">In attesa di dati...</div>
 </div>
 
-<div id="debug-log">Stato sistema: Avvio in corso...</div>
+<div id="debug-log">Log: Inizializzazione...</div>
 
 <div class="controls">
     <div>SOGLIA ALERT (%): <input type="number" id="alertThreshold" value="0.01" step="0.005"></div>
-    <div style="font-size: 0.8rem; color: #888;">I token vengono letti esclusivamente dal file <b>mint.txt</b></div>
+    <div style="font-size: 0.8rem; color: #888;">Lettura dinamica da <b>mint.txt</b></div>
 </div>
 
 <div id="dashboard" class="grid"></div>
@@ -44,49 +44,38 @@
 
     const logger = (msg) => { document.getElementById('debug-log').innerText = "Log: " + msg; };
 
-    // 1. CARICAMENTO ESCLUSIVO DAL FILE
-    async function loadTokensFromFile() {
+    async function loadTokens() {
         try {
-            logger("Tentativo di lettura mint.txt...");
-            // Usiamo un parametro casuale (?t=...) per saltare la cache di GitHub
-            const response = await fetch('mint.txt?t=' + Date.now());
+            const r = await fetch('mint.txt?v=' + Date.now());
+            if (!r.ok) throw new Error("Impossibile leggere mint.txt");
+            const text = await r.text();
             
-            if (!response.ok) {
-                throw new Error("File mint.txt non trovato sul server (Errore " + response.status + ")");
-            }
-
-            const text = await response.text();
-            
-            // Logica di pulizia migliorata:
-            // Prende ogni riga, rimuove spazi, e isola l'indirizzo (l'ultima parola della riga)
+            // Estrazione pulita degli indirizzi 
             const mints = text.split(/\r?\n/)
-                             .map(line => line.trim())
-                             .filter(line => line.length > 0)
-                             .map(line => {
-                                 const parts = line.split(/\s+/);
-                                 return parts[parts.length - 1]; // Prende l'ultimo elemento (l'indirizzo)
-                             })
-                             .filter(address => address.length >= 32 && address.length <= 48);
+                             .map(l => l.trim())
+                             .filter(l => l.length > 0)
+                             .map(l => l.split(/\s+/).pop()) // Prende solo l'ultima parte (l'indirizzo) 
+                             .filter(addr => addr.length >= 32 && addr.length <= 48);
 
-            if (mints.length === 0) {
-                logger("File letto, ma nessun indirizzo valido trovato. Controlla il formato!");
-                return [];
-            }
-
-            logger(`Caricati con successo ${mints.length} token dal file.`);
+            if (mints.length === 0) throw new Error("Nessun indirizzo valido in mint.txt");
+            
+            logger(`Caricati ${mints.length} token. Avvio scanner...`);
             return mints;
         } catch (e) {
-            logger("ERRORE CRITICO: " + e.message);
+            logger("ERRORE: " + e.message);
             return [];
         }
     }
 
     async function fetchMetadata(mints) {
         try {
+            // Tentativo di recupero nomi, ma non blocca lo scanner se fallisce
             const r = await fetch(`https://tokens.jup.ag/tokens?tokens=${mints.join(',')}`);
-            const data = await r.json();
-            data.forEach(t => { tokenMetadata[t.address] = { name: t.name, symbol: t.symbol }; });
-        } catch (e) { logger("Errore nel recupero nomi token."); }
+            if (r.ok) {
+                const data = await r.json();
+                data.forEach(t => { tokenMetadata[t.address] = { name: t.name, symbol: t.symbol }; });
+            }
+        } catch (e) { console.warn("Metadati non disponibili."); }
     }
 
     async function scan() {
@@ -94,21 +83,22 @@
         
         for (const mint of activeMints) {
             try {
+                // Chiamata Quote API v6
                 const r = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0`);
                 const data = await r.json();
                 
                 if (data && data.outAmount) {
-                    render(mint, data, threshold);
+                    renderCard(mint, data, threshold);
                 }
             } catch (e) { console.error("Errore quote:", mint); }
         }
-        document.getElementById('status').innerText = "Ultimo scan: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Update: " + new Date().toLocaleTimeString();
     }
 
-    function render(mint, data, threshold) {
+    function renderCard(mint, data, threshold) {
         const out = data.outAmount / 1e9;
         const pct = ((out - 5) / 5) * 100;
-        const meta = tokenMetadata[mint] || { name: "Token", symbol: "???" };
+        const meta = tokenMetadata[mint] || { name: mint.substring(0,8) + '...', symbol: '???' };
         
         let card = document.getElementById(mint);
         if (!card) {
@@ -123,23 +113,23 @@
         if(isAlert) document.getElementById('beep').play().catch(()=>{});
 
         card.innerHTML = `
-            <div class="token-name">${meta.name} <span style="font-size:0.8rem; color:#888;">${meta.symbol}</span></div>
+            <div class="token-name">${meta.name} <span style="font-size:0.7rem; color:#666;">${meta.symbol}</span></div>
             <div style="font-size:0.6rem; color:#444; margin-bottom:10px;">${mint}</div>
             <div class="${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-            <div style="font-size:0.85rem; margin-top:10px; color:#aaa;">
-                Rendimento: <b>${out.toFixed(5)} SOL</b><br>
-                Price Impact: ${data.priceImpactPct}%
+            <div style="font-size:0.8rem; margin-top:10px; color:#aaa;">
+                Out: <b>${out.toFixed(5)} SOL</b><br>
+                Impact: ${data.priceImpactPct}%
             </div>
-            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI ORA</a>
+            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI ARB</a>
         `;
     }
 
     async function init() {
-        activeMints = await loadTokensFromFile();
+        activeMints = await loadTokens();
         if (activeMints.length > 0) {
-            await fetchMetadata(activeMints);
-            scan();
-            setInterval(scan, 10000);
+            await fetchMetadata(activeMints); // Prova a prendere i nomi
+            scan(); // Primo scan immediato
+            setInterval(scan, 10000); // Poi ogni 10 secondi
         }
     }
 
