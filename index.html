@@ -2,68 +2,69 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Solana Arb Sentry - LIVE</title>
+    <title>Solana Arb Sentry - Named Edition</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
         body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 0; padding: 20px; }
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
-        .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; }
+        .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; position: relative; }
         .card.active { border-color: var(--glow); box-shadow: 0 0 20px rgba(0,255,65,0.3); background: #001a00; }
-        .pos { color: var(--glow); font-weight: bold; font-size: 1.2rem; }
-        .neg { color: #ff3e3e; font-size: 1.2rem; }
+        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
+        .mint-id { font-size: 0.7rem; color: #555; margin-bottom: 10px; display: block; }
+        .pos { color: var(--glow); font-weight: bold; font-size: 1.4rem; }
+        .neg { color: #ff3e3e; font-size: 1.4rem; }
         .btn { display: block; text-align: center; padding: 12px; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 6px; margin-top: 15px; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: var(--glow); color: #000; }
-        #log { background: #000; color: #555; padding: 10px; height: 100px; overflow-y: auto; font-size: 0.8rem; border-top: 1px solid #222; margin-top: 20px; }
+        #status { font-size: 0.9rem; color: #888; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY <span style="font-size: 0.8rem; vertical-align: middle; border: 1px solid; padding: 2px 5px;">LIVE</span></h1>
-    <div id="status">Sincronizzazione...</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
+    <div id="status">Inizializzazione nomi...</div>
 </div>
 
 <div id="dashboard" class="grid"></div>
-<div id="log">> Inizializzazione sessione live...</div>
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    // Indirizzi estratti dal tuo mint.txt 
-    const MINTS = [
-        "9JK2U7aEkp3tWaFNuaJowWRgNys5DVaKGxWk73VT5ray",
-        "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk",
-        "GnYufMbTAMz1DzkSN2DmwkBzjMTLkM22WvQuN1VCbonk",
-        "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS"
-    ];
+    // Mappa dei nomi basata sui tuoi indirizzi 
+    const TOKEN_MAP = {
+        "9JK2U7aEkp3tWaFNuaJowWRgNys5DVaKGxWk73VT5ray": "BONK-POOL / LP",
+        "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk": "BONK-VARIATION",
+        "GnYufMbTAMz1DzkSN2DmwkBzjMTLkM22WvQuN1VCbonk": "BONK-RESERVE",
+        "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS": "SOL-ALT-MINT"
+    };
+
+    const MINTS = Object.keys(TOKEN_MAP);
+    const SOL_ADDR = "So11111111111111111111111111111111111111112";
 
     async function checkArb() {
-        const log = document.getElementById('log');
         for (const mint of MINTS) {
             try {
-                // Usiamo l'API v6 di Jupiter con parametri ottimizzati per il web
-                const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=So11111111111111111111111111111111111111112&amount=5000000000&intermediateMint=${mint}&slippageBps=0`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
+                // Test con 5 SOL
+                const response = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0`);
                 const data = await response.json();
+                
                 if (data.outAmount) {
                     updateUI(mint, data);
                 }
             } catch (e) {
-                log.innerHTML = `> Errore API su ${mint.substring(0,5)}...<br>` + log.innerHTML;
+                console.error("Errore fetch:", mint);
             }
         }
-        document.getElementById('status').innerText = "Ultimo Update: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Live Update: " + new Date().toLocaleTimeString();
     }
 
     function updateUI(mint, data) {
         const out = data.outAmount / 1e9;
         const pct = ((out - 5) / 5) * 100;
-        let card = document.getElementById(mint);
+        const name = TOKEN_MAP[mint] || "Unknown Token";
         
+        let card = document.getElementById(mint);
         if (!card) {
             card = document.createElement('div');
             card.id = mint;
@@ -76,17 +77,18 @@
         if(isProfitable) document.getElementById('beep').play().catch(()=>{});
 
         card.innerHTML = `
-            <div style="font-size:0.7rem; color:#666; margin-bottom:10px;">${mint}</div>
+            <div class="token-name">${name}</div>
+            <span class="mint-id">${mint.substring(0,8)}...${mint.substring(mint.length-4)}</span>
             <div class="${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-            <div style="font-size:0.9rem; margin-top:10px;">
-                Rendimento: <b>${out.toFixed(5)} SOL</b><br>
-                Price Impact: ${data.priceImpactPct}%
+            <div style="font-size:0.9rem; margin-top:10px; color:#aaa;">
+                Rendimento: <b style="color:#eee;">${out.toFixed(5)} SOL</b><br>
+                Impact: ${data.priceImpactPct}%
             </div>
-            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">APRI SWAP</a>
+            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI SWAP</a>
         `;
     }
 
-    setInterval(checkArb, 8000); // 8 secondi per evitare il rate-limit di GitHub/Jupiter
+    setInterval(checkArb, 7000);
     checkArb();
 </script>
 </body>
