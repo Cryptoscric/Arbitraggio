@@ -2,129 +2,135 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Arb Sentry - Multi-DEX Comparison</title>
+    <title>Multi-DEX Arbitrage Sentry</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
-        body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 0; padding: 20px; }
-        .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; }
-        .grid { display: grid; grid-template-columns: 1fr; gap: 25px; }
-        .token-section { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; }
-        .token-title { font-size: 1.2rem; color: var(--glow); margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #111; --text: #eee; }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .header { border-bottom: 2px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .token-section { background: var(--card); border: 1px solid #222; border-radius: 12px; padding: 15px; }
+        .token-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        .mint-addr { font-size: 0.65rem; color: #555; }
         
-        .dex-container { display: flex; flex-wrap: wrap; gap: 10px; }
-        .dex-card { background: #1a1a1a; border: 1px solid #444; padding: 15px; border-radius: 8px; flex: 1; min-width: 180px; text-align: center; transition: 0.3s; }
-        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 15px rgba(0, 255, 65, 0.2); }
-        .dex-name { font-size: 0.8rem; color: #888; text-transform: uppercase; margin-bottom: 8px; }
-        
-        .price { font-size: 1.2rem; font-weight: bold; margin: 10px 0; }
-        .profit { font-size: 0.9rem; font-weight: bold; }
+        .dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+        .dex-card { background: #181818; border: 1px solid #333; padding: 12px; border-radius: 8px; text-align: center; transition: 0.2s; }
+        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); background: #001a00; }
+        .dex-name { font-size: 0.75rem; font-weight: bold; color: #888; text-transform: uppercase; }
+        .price { font-size: 1.1rem; margin: 8px 0; color: #fff; }
+        .pct { font-size: 0.8rem; font-weight: bold; }
         .pos { color: var(--glow); }
-        .neg { color: #ff3e3e; }
+        .neg { color: #ff4444; }
         
-        .btn-swap { display: inline-block; margin-top: 10px; padding: 5px 10px; border: 1px solid var(--glow); color: var(--glow); text-decoration: none; font-size: 0.7rem; border-radius: 4px; }
-        .btn-swap:hover { background: var(--glow); color: #000; }
-        
-        #status-bar { background: #111; padding: 10px; border-radius: 5px; font-size: 0.8rem; color: #ffa500; margin-bottom: 20px; }
+        #log-bar { background: #1a1a00; color: #ffcc00; padding: 8px 15px; border-radius: 5px; font-size: 0.75rem; margin-bottom: 20px; border: 1px solid #330; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0;">SOLANA MULTI-DEX SENTRY</h1>
-    <div style="color: #666; font-size: 0.8rem;">Analisi comparativa: Orca, Meteora, Raydium, Drift, Manifest</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB MULTI-DEX</h1>
+    <div id="status" style="font-size:0.8rem; color:#666;">Inizializzazione...</div>
 </div>
 
-<div id="status-bar">Caricamento token da mint.txt...</div>
-<div id="main-grid" class="grid"></div>
+<div id="log-bar">Caricamento configurazione...</div>
+
+<div class="grid" id="main-grid"></div>
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    const DEXES = ["Orca", "Meteora", "Raydium", "Drift", "Manifest"];
-    let activeMints = [];
+    const SOL = "So11111111111111111111111111111111111111112";
+    // Nomi tecnici corretti per il routing di Jupiter
+    const DEX_MAP = [
+        { id: "Orca", label: "ORCA WHIRLPOOL" },
+        { id: "Meteora", label: "METEORA DLMM" },
+        { id: "Raydium", label: "RAYDIUM" },
+        { id: "Drift", label: "DRIFT" },
+        { id: "Manifest", label: "MANIFEST" },
+        { id: "Kamino", label: "KAMINO" }
+    ];
 
-    async function loadTokens() {
+    let mints = [];
+
+    async function getTokens() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            // Pulisce gli indirizzi estratti dal file
-            const mints = text.split(/\r?\n/)
-                             .map(l => l.trim().split(/\s+/).pop())
-                             .filter(addr => addr.length >= 32 && addr.length <= 48);
-            
-            document.getElementById('status-bar').innerText = `Monitoraggio avviato su ${mints.length} token.`;
-            return mints;
-        } catch (e) {
-            document.getElementById('status-bar').innerText = "Errore: mint.txt non trovato.";
-            return [];
-        }
+            // Pulisce l'input dal file
+            return text.split(/\r?\n/)
+                       .map(l => l.trim().split(/\s+/).pop())
+                       .filter(addr => addr && addr.length > 30);
+        } catch (e) { return []; }
     }
 
-    async function checkDexPrice(mint, dex) {
+    async function fetchPrice(mint, dexId) {
         try {
-            // Chiamata a Jupiter forzando il DEX specifico
-            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0&onlyDirectRoutes=true&dexes=${dex}`;
+            // Amount: 5 SOL (5000000000 lamports)
+            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=5000000000&intermediateMint=${mint}&slippageBps=0&dexes=${dexId}&onlyDirectRoutes=true`;
             const r = await fetch(url);
-            const data = await r.json();
-            return data;
+            return await r.json();
         } catch (e) { return null; }
     }
 
-    async function updateDashboard() {
+    async function refresh() {
         const grid = document.getElementById('main-grid');
-        
-        for (const mint of activeMints) {
-            let section = document.getElementById('section-' + mint);
+        document.getElementById('log-bar').innerText = `Scansione di ${mints.length} token su ${DEX_MAP.length} mercati...`;
+
+        for (const mint of mints) {
+            let section = document.getElementById('sec-' + mint);
             if (!section) {
                 section = document.createElement('div');
-                section.id = 'section-' + mint;
+                section.id = 'sec-' + mint;
                 section.className = 'token-section';
-                section.innerHTML = `<div class="token-title">Token: ${mint.substring(0,12)}...</div><div class="dex-container" id="container-${mint}"></div>`;
+                section.innerHTML = `
+                    <div class="token-header">
+                        <span style="color:var(--glow); font-weight:bold;">TOKEN: ${mint.substring(0,8)}...</span>
+                        <span class="mint-addr">${mint}</span>
+                    </div>
+                    <div class="dex-grid" id="grid-${mint}"></div>`;
                 grid.appendChild(section);
             }
 
-            const container = document.getElementById('container-' + mint);
-            
-            // Esegue il controllo su ogni DEX per questo specifico token
-            for (const dex of DEXES) {
-                const data = await checkDexPrice(mint, dex);
-                let dexCard = document.getElementById(`card-${mint}-${dex}`);
-                
-                if (!dexCard) {
-                    dexCard = document.createElement('div');
-                    dexCard.id = `card-${mint}-${dex}`;
-                    dexCard.className = 'dex-card';
-                    container.appendChild(dexCard);
+            const dexGrid = document.getElementById('grid-' + mint);
+
+            for (const dex of DEX_MAP) {
+                const data = await fetchPrice(mint, dex.id);
+                let card = document.getElementById(`card-${mint}-${dex.id}`);
+
+                if (!card) {
+                    card = document.createElement('div');
+                    card.id = `card-${mint}-${dex.id}`;
+                    card.className = 'dex-card';
+                    dexGrid.appendChild(card);
                 }
 
                 if (data && data.outAmount) {
                     const out = data.outAmount / 1e9;
                     const pct = ((out - 5) / 5) * 100;
-                    const isProfitable = pct > 0.01;
+                    const active = pct > 0.01;
                     
-                    dexCard.classList.toggle('active', isProfitable);
-                    if(isProfitable) document.getElementById('beep').play().catch(()=>{});
+                    card.classList.toggle('active', active);
+                    if(active) document.getElementById('beep').play().catch(()=>{});
 
-                    dexCard.innerHTML = `
-                        <div class="dex-name">${dex}</div>
-                        <div class="price">${out.toFixed(5)} SOL</div>
-                        <div class="profit ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-                        <a href="https://jup.ag/swap/SOL-${mint}-SOL?dex=${dex}" target="_blank" class="btn-swap">APRI ${dex}</a>
+                    card.innerHTML = `
+                        <div class="dex-name">${dex.label}</div>
+                        <div class="price">${out.toFixed(5)} <span style="font-size:0.6rem">SOL</span></div>
+                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%</div>
                     `;
                 } else {
-                    dexCard.innerHTML = `<div class="dex-name">${dex}</div><div style="color:#444; margin-top:10px;">No Pool</div>`;
+                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#333; font-size:0.7rem; margin-top:10px;">NO LIQUIDITY</div>`;
                 }
             }
         }
-        document.getElementById('status-bar').innerText = "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Live: " + new Date().toLocaleTimeString();
     }
 
     async function init() {
-        activeMints = await loadTokens();
-        if (activeMints.length > 0) {
-            updateDashboard();
-            setInterval(updateDashboard, 15000); // Ogni 15 secondi per non saturare le API
+        mints = await getTokens();
+        if (mints.length > 0) {
+            refresh();
+            setInterval(refresh, 20000); // 20 secondi per evitare rate-limit
+        } else {
+            document.getElementById('log-bar').innerText = "ERRORE: Nessun token trovato in mint.txt";
         }
     }
 
