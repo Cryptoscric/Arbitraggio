@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Hyperlink Mode</title>
+    <title>ARB SENTRY - Direct DEX Swap</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
@@ -29,10 +29,9 @@
         .arb-card { border: 1px solid #444; background: #000; }
         .alert-border { border-color: var(--glow); box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1); }
 
-        /* Link Stile */
-        .dex-link { text-decoration: none; cursor: pointer; display: block; margin-bottom: 5px; }
+        .dex-link { text-decoration: none; display: block; margin-bottom: 5px; }
         .dex-name { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; transition: 0.2s; }
-        .dex-link:hover .dex-name { filter: brightness(1.5); text-decoration: underline; }
+        .dex-link:hover .dex-name { color: #fff !important; text-decoration: underline; }
         
         .dex-name.highest { color: var(--glow) !important; text-shadow: 0 0 5px var(--glow); }
         .dex-name.lowest { color: var(--red) !important; text-shadow: 0 0 5px var(--red); }
@@ -49,7 +48,7 @@
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY - CLICK TO SWAP</h2>
+    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY - DIRECT SWAP LINKS</h2>
     <div id="status-msg" style="font-size: 0.7rem; color: #555;">Ready...</div>
 </div>
 
@@ -70,6 +69,20 @@
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     let mints = [];
     let timeLeft = 15;
+
+    // Funzione per generare il link di swap diretto
+    function getDirectSwapUrl(dex, mint) {
+        switch(dex.toLowerCase()) {
+            case 'raydium':
+                return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
+            case 'orca':
+                return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
+            case 'meteora':
+                return `https://app.meteora.ag/swap/${mint}`;
+            default:
+                return "#";
+        }
+    }
 
     async function loadMints() {
         try {
@@ -142,12 +155,11 @@
                 const p = token.prices.find(ap => ap.dex.toLowerCase() === dex.toLowerCase());
                 if (p) {
                     let cls = (p.price === maxP && token.prices.length > 1) ? "highest" : (p.price === minP && token.prices.length > 1) ? "lowest" : "";
-                    // URL di DexScreener per quel pair specifico
-                    const swapUrl = p.data.url; 
+                    const directUrl = getDirectSwapUrl(dex, token.mint);
                     html += `
                         <div class="dex-card">
-                            <a href="${swapUrl}" target="_blank" class="dex-link">
-                                <div class="dex-name ${cls}">${dex.toUpperCase()} 🔗</div>
+                            <a href="${directUrl}" target="_blank" class="dex-link">
+                                <div class="dex-name ${cls}">${dex.toUpperCase()} ↗</div>
                             </a>
                             <span class="price">$${p.price < 1 ? p.price.toFixed(6) : p.price.toFixed(4)}</span>
                             <span class="liq-info">LP totale: $${Math.round(p.data.liquidity?.usd || 0).toLocaleString()}</span>
