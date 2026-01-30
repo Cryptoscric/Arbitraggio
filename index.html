@@ -2,167 +2,228 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Terminale Operativo</title>
+    <title>ARB SENTRY - Green Gap Mode</title>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; --blue: #008cff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 20px; align-items: center; }
         
         .control-group { display: flex; align-items: center; gap: 8px; }
         .controls label { font-size: 0.7rem; font-weight: 800; color: var(--glow); text-transform: uppercase; }
-        .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 80px; font-size: 0.9rem; text-align: center; }
+        .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 80px; font-size: 0.9rem; text-align: center; outline: none; }
         
-        #wallet-btn { background: var(--blue); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        #wallet-btn.connected { background: var(--glow); color: black; }
+        .mod-tag { color: #00ff41; font-size: 0.65rem; font-weight: bold; margin-left: 2px; }
 
-        .token-section { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 12px; margin-bottom: 15px; }
+        .timer-container { flex-grow: 1; text-align: right; }
+        #timer-text { font-size: 0.8rem; color: var(--glow); margin-bottom: 3px; display: block; }
+        #countdown-bar { width: 100px; height: 4px; background: #222; border-radius: 2px; float: right; overflow: hidden; }
+        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
+
+        #main-grid { display: flex; flex-direction: column; gap: 15px; }
+        .token-section { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 12px; }
+        
         .token-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
         .token-info .name { color: var(--glow); font-size: 1rem; font-weight: 900; }
-        
-        .dex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-        .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; position: relative; }
-        
-        /* Bottoni Azione */
-        .btn-action { width: 45%; padding: 5px; font-size: 0.65rem; font-weight: bold; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; text-transform: uppercase; }
-        .btn-buy { background: var(--glow); color: black; margin-right: 4px; }
-        .btn-sell { background: var(--red); color: white; }
-        .btn-action:disabled { opacity: 0.3; cursor: not-allowed; }
+        .token-info .addr { color: var(--magenta); font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px dashed transparent; padding: 2px; }
 
-        .price { font-size: 0.9rem; font-weight: 800; display: block; margin: 5px 0; }
-        .gap-value { font-size: 1.2rem; font-weight: 900; color: #444; }
-        .blink-green { color: var(--glow) !important; animation: blink 0.6s infinite; }
+        .dex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; }
+        .arb-card { border: 1px solid #444; background: #000; }
+        .profit-card { border: 1px solid #333; background: #080808; }
+        
+        .alert-border-green { border-color: var(--glow) !important; box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1); }
+        .alert-border-magenta { border-color: var(--magenta) !important; box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1); }
+        
+        .blink-green { color: var(--glow) !important; animation: blink 0.6s infinite; font-weight: 900; }
+        .blink-magenta { color: var(--magenta) !important; animation: blink 0.6s infinite; font-weight: 900; }
+
+        .price { font-size: 1rem; font-weight: 800; color: #fff; display: block; }
+        .liq-info { font-size: 0.7rem; font-weight: 700; color: #666; margin-top: 4px; display: block; }
+
+        /* NUOVI BOTTONI AZIONE */
+        .trade-btns { display: flex; gap: 4px; margin-top: 8px; }
+        .btn-trade { flex: 1; border: none; padding: 4px; font-size: 0.65rem; font-weight: 900; cursor: pointer; border-radius: 3px; text-transform: uppercase; }
+        .btn-buy { background: var(--glow); color: #000; }
+        .btn-sell { background: var(--red); color: #fff; }
+        #wallet-status { font-size: 0.7rem; cursor: pointer; padding: 4px 8px; border: 1px solid var(--glow); border-radius: 4px; color: var(--glow); }
+        
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0;">ARB SENTRY - TERMINAL</h2>
-    <button id="wallet-btn" onclick="connectWallet()">CONNETTI WALLET</button>
+    <div>
+        <h2 style="color: var(--glow); margin:0; font-size: 1.1rem; display: inline-block;">ARB SENTRY - GREEN GAP</h2>
+        <span id="wallet-status" onclick="connectWallet()" style="margin-left: 15px;">CONNETTI WALLET</span>
+    </div>
+    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Ready...</div>
 </div>
 
 <div class="controls">
     <div class="control-group">
-        <label>ORDINE SOL:</label>
-        <input type="number" id="trade-amount" value="0.1" step="0.1">
+        <label>GAP ALERT %</label>
+        <input type="number" id="threshold" value="1.0" step="0.1">
+        <span class="mod-tag">MODIFICABILE</span>
     </div>
-    <div id="status-msg" style="font-size: 0.7rem; color: #888;">Pronto per l'azione...</div>
+    <div class="control-group">
+        <label>SIMULA CON USDC:</label>
+        <input type="number" id="usdc-amount" value="100" step="10">
+    </div>
+    <div class="control-group">
+        <label>TRADE SOL:</label>
+        <input type="number" id="trade-sol" value="0.1" step="0.05">
+    </div>
+    <div class="timer-container">
+        <span id="timer-text">RE-RANK: 15s</span>
+        <div id="countdown-bar"><div id="progress"></div></div>
+    </div>
 </div>
 
 <div id="main-grid"></div>
 
 <script>
-    const TARGET_DEX_IDS = ["Raydium", "Orca", "Meteora"];
-    let mints = [];
-    let userWallet = null;
+    const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     const SOL_MINT = "So11111111111111111111111111111111111111112";
+    let mints = [];
+    let timeLeft = 15;
+    let userWallet = null;
 
-    // --- LOGICA WALLET ---
     async function connectWallet() {
         if (window.solana) {
-            try {
-                const resp = await window.solana.connect();
-                userWallet = resp.publicKey.toString();
-                const btn = document.getElementById('wallet-btn');
-                btn.innerText = userWallet.substring(0, 6) + "... Connected";
-                btn.className = "connected";
-                scan(); 
-            } catch (err) { console.error("User rejected", err); }
-        } else { alert("Installa Phantom!"); }
-    }
-
-    // --- LOGICA TRADING (JUPITER) ---
-    async function executeSwap(mode, targetMint, dexForce) {
-        if (!userWallet) return alert("Connetti il wallet prima!");
-        const status = document.getElementById('status-msg');
-        status.innerText = `Preparazione ${mode} su ${dexForce}...`;
-
-        try {
-            const amount = document.getElementById('trade-amount').value * 1e9; // Converte SOL in lamports
-            const input = mode === 'BUY' ? SOL_MINT : targetMint;
-            const output = mode === 'BUY' ? targetMint : SOL_MINT;
-            
-            // Se vendiamo, cerchiamo di vendere tutto (idealmente servirebbe fetch balance, qui usiamo input simbolico o amount)
-            const tradeQty = mode === 'BUY' ? amount : "1000000000"; // Esempio: vendi 1 token (va adattato a decimali reali)
-
-            // 1. Get Quote da Jupiter forzando il DEX
-            const quoteUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${tradeQty}&dexes=${dexForce}&slippageBps=100`;
-            const quoteResponse = await (await fetch(quoteUrl)).json();
-
-            if (!quoteResponse.outAmount) throw new Error("Nessuna rotta su " + dexForce);
-
-            // 2. Get Serialized Transaction
-            const { swapTransaction } = await (await fetch('https://quote-api.jup.ag/v6/swap', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    quoteResponse,
-                    userPublicKey: userWallet,
-                    wrapAndUnwrapSol: true,
-                })
-            })).json();
-
-            // 3. Firma e invia
-            const transactionBase64 = swapTransaction;
-            const transaction = solanaWeb3.Transaction.from(Uint8Array.from(atob(transactionBase64), c => c.charCodeAt(0)));
-            
-            const { signature } = await window.solana.signAndSendTransaction(transaction);
-            status.innerText = `Inviato! Sig: ${signature.substring(0,10)}...`;
-            
-        } catch (e) {
-            status.innerText = "Errore: " + e.message;
-            console.error(e);
+            const resp = await window.solana.connect();
+            userWallet = resp.publicKey.toString();
+            document.getElementById('wallet-status').innerText = userWallet.substring(0,6) + "...";
+            document.getElementById('wallet-status').style.borderColor = "var(--magenta)";
         }
     }
 
-    // --- LOGICA SCANNER (DEXSCREENER) ---
+    async function executeSwap(mode, targetMint, dexForce) {
+        if (!userWallet) return alert("Connetti il wallet!");
+        const status = document.getElementById('status-msg');
+        status.innerText = `Swapping on ${dexForce}...`;
+        
+        try {
+            const amount = document.getElementById('trade-sol').value * 1e9;
+            const input = mode === 'BUY' ? SOL_MINT : targetMint;
+            const output = mode === 'BUY' ? targetMint : SOL_MINT;
+            
+            // In modalità SELL, per semplicità qui usiamo un valore fisso o andrebbe fetchato il balance
+            const swapAmount = mode === 'BUY' ? amount : "1000000000"; 
+
+            const quote = await (await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${swapAmount}&dexes=${dexForce}&slippageBps=100`)).json();
+            const { swapTransaction } = await (await fetch('https://quote-api.jup.ag/v6/swap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quoteResponse: quote, userPublicKey: userWallet, wrapAndUnwrapSol: true })
+            })).json();
+
+            const transaction = solanaWeb3.Transaction.from(Uint8Array.from(atob(swapTransaction), c => c.charCodeAt(0)));
+            await window.solana.signAndSendTransaction(transaction);
+            status.innerText = "Transazione Inviata!";
+        } catch (e) { status.innerText = "Errore Swap"; }
+    }
+
+    function copyMint(text) {
+        navigator.clipboard.writeText(text);
+        const st = document.getElementById('status-msg');
+        st.innerText = "MINT COPIATO!";
+        setTimeout(() => { st.innerText = "Ready..."; }, 2000);
+    }
+
+    async function loadMints() {
+        try {
+            const r = await fetch('mint.txt?v=' + Date.now());
+            const t = await r.text();
+            return t.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(a => a && a.length > 30);
+        } catch (e) { return []; }
+    }
+
     async function scan() {
+        const threshold = parseFloat(document.getElementById('threshold').value) || 1.0;
+        const simUsdc = parseFloat(document.getElementById('usdc-amount').value) || 0;
         const grid = document.getElementById('main-grid');
-        const r = await fetch('mint.txt?v=' + Date.now());
-        const t = await r.text();
-        mints = t.split(/\n/).map(l => l.trim()).filter(a => a.length > 30);
+        let results = [];
 
         for (const mint of mints) {
-            const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
-            const data = await response.json();
-            const pairs = data.pairs || [];
-            
-            let section = document.getElementById('sec-' + mint);
-            if (!section) {
-                section = document.createElement('div');
-                section.id = 'sec-' + mint;
-                section.className = 'token-section';
-                grid.appendChild(section);
-            }
+            try {
+                const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                const data = await response.json();
+                const pairs = data.pairs || [];
+                let activePrices = [];
+                
+                TARGET_DEX_IDS.forEach(dex => {
+                    const p = pairs.find(pair => pair.dexId.toLowerCase() === dex.toLowerCase());
+                    if (p && p.priceUsd) activePrices.push({ dex: dex, price: parseFloat(p.priceUsd), data: p });
+                });
+
+                let gap = 0, netProfit = 0;
+                if (activePrices.length > 1) {
+                    const prices = activePrices.map(o => o.price);
+                    const maxP = Math.max(...prices), minP = Math.min(...prices);
+                    gap = ((maxP - minP) / minP) * 100;
+                    if (gap >= threshold && simUsdc > 0) {
+                        netProfit = ((simUsdc * 0.997 / minP) * maxP * 0.997) - simUsdc;
+                    }
+                }
+                results.push({ mint, name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Token", gap, profit: netProfit, prices: activePrices });
+            } catch (e) {}
+        }
+
+        results.sort((a, b) => b.gap - a.gap).forEach((token, index) => {
+            let section = document.getElementById('sec-' + token.mint) || document.createElement('div');
+            if(!section.id) { section.id = 'sec-' + token.mint; section.className = 'token-section'; grid.appendChild(section); }
+            section.style.order = index;
+
+            const maxPrice = token.prices.length > 0 ? Math.max(...token.prices.map(o => o.price)) : 0;
+            const minPrice = token.prices.length > 0 ? Math.min(...token.prices.map(o => o.price)) : 0;
+            const isAlert = token.gap >= threshold;
 
             let dexHTML = '';
             TARGET_DEX_IDS.forEach(dex => {
-                const p = pairs.find(pair => pair.dexId.toLowerCase() === dex.toLowerCase());
-                const priceStr = p ? `$${parseFloat(p.priceUsd).toFixed(6)}` : "N/A";
-                
-                dexHTML += `
-                    <div class="dex-card">
-                        <div class="dex-name" style="font-size:0.6rem; color:#888;">${dex}</div>
-                        <span class="price">${priceStr}</span>
-                        <button class="btn-action btn-buy" onclick="executeSwap('BUY', '${mint}', '${dex}')" ${!p ? 'disabled' : ''}>Buy</button>
-                        <button class="btn-action btn-sell" onclick="executeSwap('SELL', '${mint}', '${dex}')" ${!p ? 'disabled' : ''}>Sell</button>
-                    </div>`;
+                const p = token.prices.find(ap => ap.dex.toLowerCase() === dex.toLowerCase());
+                if (p) {
+                    let cls = (p.price === maxPrice && token.prices.length > 1) ? "highest" : (p.price === minPrice && token.prices.length > 1) ? "lowest" : "";
+                    dexHTML += `
+                        <div class="dex-card">
+                            <div class="dex-name ${cls}">${dex.toUpperCase()}</div>
+                            <span class="price">$${p.price < 0.01 ? p.price.toFixed(8) : p.price.toFixed(4)}</span>
+                            <div class="trade-btns">
+                                <button class="btn-trade btn-buy" onclick="executeSwap('BUY', '${token.mint}', '${dex}')">B</button>
+                                <button class="btn-trade btn-sell" onclick="executeSwap('SELL', '${token.mint}', '${dex}')">S</button>
+                            </div>
+                            <span class="liq-info">LP: $${Math.round(p.data.liquidity?.usd || 0).toLocaleString()}</span>
+                        </div>`;
+                } else {
+                    dexHTML += `<div class="dex-card"><div class="dex-name">${dex}</div><span style="font-size:0.7rem; color:#333;">N/A</span></div>`;
+                }
             });
 
             section.innerHTML = `
                 <div class="token-header">
-                    <div class="token-info"><span class="name">${pairs[0]?.baseToken.symbol || '???'}</span> <small>${mint}</small></div>
+                    <div class="token-info"><span class="name">${token.name}</span><span class="addr" onclick="copyMint('${token.mint}')">${token.mint} [COPIA]</span></div>
                 </div>
-                <div class="dex-grid">${dexHTML}</div>`;
-        }
+                <div class="dex-grid">${dexHTML}
+                    <div class="dex-card arb-card ${isAlert ? 'alert-border-green' : ''}"><div class="dex-name">GAP %</div><span class="gap-value ${isAlert ? 'blink-green' : ''}">${token.gap.toFixed(2)}%</span></div>
+                    <div class="dex-card profit-card ${isAlert && token.profit > 0 ? 'alert-border-magenta' : ''}"><div class="dex-name">PROFITTO</div><span class="profit-value ${isAlert && token.profit > 0 ? 'blink-magenta' : ''}">$${token.profit.toFixed(2)}</span></div>
+                </div>`;
+        });
     }
 
-    // Avvio
-    setInterval(scan, 30000); 
-    scan();
+    function timer() {
+        setInterval(() => {
+            timeLeft--;
+            document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
+            document.getElementById('timer-text').innerText = `RE-RANK: ${timeLeft}s`;
+            if (timeLeft <= 0) { timeLeft = 15; scan(); }
+        }, 1000);
+    }
+
+    async function init() { mints = await loadMints(); if (mints.length > 0) { scan(); timer(); } }
+    init();
 </script>
 </body>
 </html>
