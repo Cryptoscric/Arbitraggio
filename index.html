@@ -2,15 +2,12 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>SOLANA ARB SENTRY - DexScreener Engine</title>
+    <title>SOLANA ARB SENTRY - Price Comparison</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; --red: #ff3333; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
         .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 30px; align-items: center; }
-        .controls label { font-size: 0.9rem; font-weight: bold; color: var(--glow); text-transform: uppercase; }
         
         .timer-container { flex-grow: 1; text-align: right; }
         #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
@@ -25,27 +22,28 @@
         .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
         @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
         
-        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 20px; border-radius: 10px; text-align: center; color: #ffffff !important; }
-        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
-        .dex-card.na { opacity: 0.3; border-style: dashed; }
+        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 20px; border-radius: 10px; text-align: center; }
         
-        .dex-name { font-size: 0.85rem; font-weight: 800; color: #ffffff !important; margin-bottom: 12px; text-transform: uppercase; }
+        /* Classi dinamiche per i nomi */
+        .dex-name { font-size: 0.9rem; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; color: #ffffff; transition: 0.3s; }
+        .dex-name.highest { color: var(--glow) !important; text-shadow: 0 0 10px var(--glow); }
+        .dex-name.lowest { color: var(--red) !important; text-shadow: 0 0 10px var(--red); }
+        
         .price { font-size: 1.5rem; font-weight: 800; color: #ffffff !important; margin: 10px 0; display: block; }
-        .pct { font-size: 1.1rem; font-weight: 900; padding: 4px 10px; border-radius: 4px; display: inline-block; }
-        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.15); }
-        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.15); }
+        .liq-info { font-size: 0.7rem; color: #666; margin-top: 5px; }
+        .na-text { color: #444; font-weight: bold; margin-top: 15px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY <span style="font-size: 0.8rem; color: #555;">(DEXSCREENER ENGINE)</span></h1>
-    <div id="status-msg" style="font-weight: bold; color: #888;">Inizializzazione...</div>
+    <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY</h1>
+    <div id="status-msg" style="font-weight: bold; color: #888;">Scanning mint.txt...</div>
 </div>
 
 <div class="controls">
     <div class="timer-container">
-        <span id="timer-text">PROSSIMO AGGIORNAMENTO: 15s</span>
+        <span id="timer-text">RELOAD IN: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
@@ -53,7 +51,7 @@
 <div id="main-grid" class="grid"></div>
 
 <script>
-    const TARGET_DEX_IDS = ["raydium", "orca", "meteora", "jupiter"]; // I DEX da monitorare
+    const TARGET_DEX_IDS = ["raydium", "orca", "meteora", "jupiter"];
     let mints = [];
     let timeLeft = 15;
 
@@ -72,7 +70,6 @@
 
         for (const mint of mints) {
             try {
-                // Utilizziamo l'endpoint di DexScreener inviato nel tuo esempio
                 const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
                 const data = await response.json();
                 
@@ -84,7 +81,7 @@
                     section.innerHTML = `
                         <div class="token-header">
                             <span>TOKEN: ${mint.substring(0,12)}...</span>
-                            <span style="font-size:0.8rem; color:#666; font-family:monospace;">${mint}</span>
+                            <span style="font-size:0.8rem; color:#444;">${mint}</span>
                         </div>
                         <div class="dex-grid" id="grid-${mint}"></div>`;
                     grid.appendChild(section);
@@ -92,6 +89,18 @@
 
                 const dexGrid = document.getElementById('grid-' + mint);
                 const pairs = data.pairs || [];
+                
+                // Raccogliamo i prezzi validi per trovare min/max
+                let activePrices = [];
+
+                TARGET_DEX_IDS.forEach(dexName => {
+                    const pair = pairs.find(p => p.dexId.toLowerCase() === dexName.toLowerCase());
+                    if (pair) activePrices.push({ dex: dexName, price: parseFloat(pair.priceUsd) });
+                });
+
+                // Troviamo il valore più alto e più basso
+                let maxPrice = activePrices.length > 0 ? Math.max(...activePrices.map(o => o.price)) : 0;
+                let minPrice = activePrices.length > 0 ? Math.min(...activePrices.map(o => o.price)) : 0;
 
                 TARGET_DEX_IDS.forEach(dexName => {
                     let card = document.getElementById(`card-${mint}-${dexName}`);
@@ -102,37 +111,41 @@
                         dexGrid.appendChild(card);
                     }
 
-                    // Cerca la coppia SOL o USDC per quel DEX specifico
                     const pair = pairs.find(p => p.dexId.toLowerCase() === dexName.toLowerCase());
 
                     if (pair) {
-                        const price = parseFloat(pair.priceUsd);
-                        const change = pair.priceChange.h24 || 0;
-                        card.classList.remove('na');
+                        const currentPrice = parseFloat(pair.priceUsd);
+                        let statusClass = "";
+                        
+                        // Solo se ci sono almeno due prezzi diversi coloriamo
+                        if (activePrices.length > 1 && maxPrice !== minPrice) {
+                            if (currentPrice === maxPrice) statusClass = "highest";
+                            else if (currentPrice === minPrice) statusClass = "lowest";
+                        }
+
                         card.innerHTML = `
-                            <div class="dex-name">${dexName.toUpperCase()}</div>
-                            <span class="price">$${price < 1 ? price.toFixed(6) : price.toFixed(2)}</span>
-                            <div class="pct ${change >= 0 ? 'pos' : 'neg'}">${change >= 0 ? '+' : ''}${change}%</div>
-                            <div style="font-size:0.7rem; color:#666; margin-top:5px;">Liq: $${Math.round(pair.liquidity?.usd || 0).toLocaleString()}</div>
+                            <div class="dex-name ${statusClass}">${dexName.toUpperCase()}</div>
+                            <span class="price">$${currentPrice < 1 ? currentPrice.toFixed(6) : currentPrice.toFixed(2)}</span>
+                            <div class="liq-info">Liq: $${Math.round(pair.liquidity?.usd || 0).toLocaleString()}</div>
                         `;
                     } else {
-                        card.classList.add('na');
-                        card.innerHTML = `<div class="dex-name">${dexName.toUpperCase()}</div><div style="color:#666; font-weight:bold; margin-top:15px;">NO POOL</div>`;
+                        card.innerHTML = `
+                            <div class="dex-name">${dexName.toUpperCase()}</div>
+                            <span class="na-text">NO POOL</span>
+                        `;
                     }
                 });
 
-            } catch (e) {
-                console.error("Errore nel recupero dati per " + mint, e);
-            }
+            } catch (e) { console.error(e); }
         }
-        document.getElementById('status-msg').innerText = "LIVE UPDATE: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "LIVE: " + new Date().toLocaleTimeString();
     }
 
     function startTimer() {
         setInterval(() => {
             timeLeft--;
             document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
-            document.getElementById('timer-text').innerText = `PROSSIMO AGGIORNAMENTO: ${timeLeft}s`;
+            document.getElementById('timer-text').innerText = `RELOAD IN: ${timeLeft}s`;
             if (timeLeft <= 0) { timeLeft = 15; scan(); }
         }, 1000);
     }
