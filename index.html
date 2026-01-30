@@ -2,21 +2,21 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - PRO Simulator</title>
+    <title>ARB SENTRY - Magenta Simulator</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 20px; align-items: center; }
         
         .control-group { display: flex; align-items: center; gap: 8px; }
         .controls label { font-size: 0.7rem; font-weight: 800; color: var(--glow); text-transform: uppercase; }
         .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 70px; font-size: 0.9rem; text-align: center; outline: none; }
         
-        .mod-tag { color: var(--glow); font-size: 0.65rem; font-weight: bold; margin-left: 5px; }
+        .mod-tag { color: #00ff41; font-size: 0.65rem; font-weight: bold; margin-left: 2px; }
 
-        .timer-container { flex-grow: 1; text-align: right; min-width: 150px; }
+        .timer-container { flex-grow: 1; text-align: right; }
         #timer-text { font-size: 0.8rem; color: var(--glow); margin-bottom: 3px; display: block; }
         #countdown-bar { width: 100px; height: 4px; background: #222; border-radius: 2px; float: right; overflow: hidden; }
         #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
@@ -26,15 +26,17 @@
         
         .token-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
         .token-info .name { color: var(--glow); font-size: 1rem; font-weight: 900; }
-        .token-info .addr { color: var(--magenta); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .token-info .addr:hover { filter: brightness(1.5); }
-        .token-info .addr:active { transform: scale(0.98); }
+        .token-info .addr { color: var(--magenta); font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px dashed transparent; padding: 2px; }
+        .token-info .addr:hover { border-color: var(--magenta); background: rgba(255,0,255,0.1); }
 
         .dex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-        .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; }
         .arb-card { border: 1px solid #444; background: #000; }
-        .profit-card { border: 1px solid #005511; background: #001100; }
-        .alert-border { border-color: var(--glow); box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1); }
+        .profit-card { border: 1px solid #333; background: #080808; }
+        
+        /* Alert Styles */
+        .alert-border { border-color: var(--magenta) !important; box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1); }
+        .blink-magenta { color: var(--magenta) !important; animation: blink 0.6s infinite; font-weight: 900; }
 
         .dex-link { text-decoration: none; display: block; margin-bottom: 3px; }
         .dex-name { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: #888; }
@@ -43,18 +45,17 @@
         
         .price { font-size: 1rem; font-weight: 800; color: #fff; }
         .gap-value { font-size: 1.2rem; font-weight: 900; color: #444; }
-        .profit-value { font-size: 1.2rem; font-weight: 900; color: var(--glow); }
+        .profit-value { font-size: 1.2rem; font-weight: 900; color: #444; }
         
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .blink { animation: blink 0.6s infinite; }
-        .liq-info { font-size: 0.7rem; font-weight: 700; color: #ffffff; margin-top: 4px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+        .liq-info { font-size: 0.7rem; font-weight: 700; color: #ffffff; margin-top: 4px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.1rem;">ARB SENTRY - SIMULATOR V1</h2>
-    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Inizializzazione...</div>
+    <h2 style="color: var(--glow); margin:0; font-size: 1.1rem;">ARB SENTRY - MAGENTA PRO</h2>
+    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Live Scanning...</div>
 </div>
 
 <div class="controls">
@@ -64,11 +65,11 @@
         <span class="mod-tag">MODIFICABILE</span>
     </div>
     <div class="control-group">
-        <label>SIMULA SOL</label>
-        <input type="number" id="sol-amount" value="1.0" step="0.5">
+        <label>IMPORTA SOL</label>
+        <input type="number" id="sol-amount" value="1.0" step="0.1">
     </div>
     <div class="timer-container">
-        <span id="timer-text">SCAN...</span>
+        <span id="timer-text">RE-RANK: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
@@ -79,43 +80,40 @@
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     let mints = [];
     let timeLeft = 15;
-    let solPrice = 100; // Default temporaneo
+    let solPriceUsdc = 0;
 
-    async function getSolPrice() {
+    async function updateSolPrice() {
         try {
             const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112');
-            const data = await r.json();
-            solPrice = parseFloat(data.pairs[0].priceUsd);
-        } catch(e) {}
+            const d = await r.json();
+            solPriceUsdc = parseFloat(d.pairs[0].priceUsd);
+        } catch(e) { solPriceUsdc = 150; } // Fallback
     }
 
-    function copyToClipboard(text) {
+    function copyMint(text) {
         navigator.clipboard.writeText(text);
-        const msg = document.getElementById('status-msg');
-        msg.innerText = "MINT COPIATO!";
-        msg.style.color = "var(--magenta)";
-        setTimeout(() => { msg.innerText = "Live..."; msg.style.color = "#555"; }, 2000);
+        const st = document.getElementById('status-msg');
+        st.innerText = "MINT COPIATO NEGLI APPUNTI!";
+        st.style.color = "var(--magenta)";
+        setTimeout(() => { st.innerText = "Live Scanning..."; st.style.color = "#555"; }, 2500);
     }
 
-    function getDirectSwapUrl(dex, mint) {
-        switch(dex.toLowerCase()) {
-            case 'raydium': return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
-            case 'orca': return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
-            case 'meteora': return `https://www.meteora.ag/pools`;
-            default: return "#";
-        }
+    function getSwapUrl(dex, mint) {
+        if(dex === 'raydium') return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
+        if(dex === 'orca') return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
+        return `https://www.meteora.ag/pools`;
     }
 
     async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
-            const text = await r.text();
-            return text.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(addr => addr && addr.length > 30);
+            const t = await r.text();
+            return t.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(a => a && a.length > 30);
         } catch (e) { return []; }
     }
 
     async function scan() {
-        await getSolPrice();
+        await updateSolPrice();
         const threshold = parseFloat(document.getElementById('threshold').value) || 1.0;
         const simSol = parseFloat(document.getElementById('sol-amount').value) || 0;
         const grid = document.getElementById('main-grid');
@@ -130,29 +128,32 @@
                 let activePrices = [];
                 TARGET_DEX_IDS.forEach(dex => {
                     const p = pairs.find(pair => pair.dexId.toLowerCase() === dex.toLowerCase());
-                    if (p) activePrices.push({ dex: dex, price: parseFloat(p.priceUsd), data: p });
+                    if (p && p.priceUsd) activePrices.push({ dex: dex, price: parseFloat(p.priceUsd), data: p });
                 });
 
                 let gap = 0;
-                let profit = 0;
+                let netProfit = 0;
+
                 if (activePrices.length > 1) {
                     const prices = activePrices.map(o => o.price);
                     const maxP = Math.max(...prices);
                     const minP = Math.min(...prices);
                     gap = ((maxP - minP) / minP) * 100;
-                    
-                    // Simulazione: SOL -> USDC -> TOKEN -> USDC
-                    const capitalUsdc = simSol * solPrice;
-                    const tokensBought = (capitalUsdc * 0.997) / minP; // -0.3% fee acquisto
-                    const finalUsdc = (tokensBought * maxP) * 0.997; // -0.3% fee vendita
-                    profit = finalUsdc - capitalUsdc;
+
+                    // CALCOLO PROFITTO SOLO SE SOPRA SOGLIA
+                    if (gap >= threshold && simSol > 0) {
+                        const investUsdc = simSol * solPriceUsdc;
+                        const tokensBought = (investUsdc * 0.997) / minP; // -0.3% fee buy
+                        const returnUsdc = (tokensBought * maxP) * 0.997; // -0.3% fee sell
+                        netProfit = returnUsdc - investUsdc;
+                    }
                 }
 
                 results.push({
                     mint: mint,
-                    name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Token",
+                    name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Unknown",
                     gap: gap,
-                    profit: profit,
+                    profit: netProfit,
                     prices: activePrices
                 });
             } catch (e) { console.error(e); }
@@ -170,20 +171,21 @@
             }
             section.style.order = index;
 
-            const maxP = token.prices.length > 0 ? Math.max(...token.prices.map(o => o.price)) : 0;
-            const minP = token.prices.length > 0 ? Math.min(...token.prices.map(o => o.price)) : 0;
+            const maxPrice = token.prices.length > 0 ? Math.max(...token.prices.map(o => o.price)) : 0;
+            const minPrice = token.prices.length > 0 ? Math.min(...token.prices.map(o => o.price)) : 0;
+            const isAlert = token.gap >= threshold;
 
             let dexHTML = '';
             TARGET_DEX_IDS.forEach(dex => {
                 const p = token.prices.find(ap => ap.dex.toLowerCase() === dex.toLowerCase());
                 if (p) {
-                    let cls = (p.price === maxP && token.prices.length > 1) ? "highest" : (p.price === minP && token.prices.length > 1) ? "lowest" : "";
+                    let cls = (p.price === maxPrice && token.prices.length > 1) ? "highest" : (p.price === minPrice && token.prices.length > 1) ? "lowest" : "";
                     dexHTML += `
                         <div class="dex-card">
-                            <a href="${getDirectSwapUrl(dex, token.mint)}" target="_blank" class="dex-link">
+                            <a href="${getSwapUrl(dex, token.mint)}" target="_blank" class="dex-link">
                                 <div class="dex-name ${cls}">${dex.toUpperCase()} ↗</div>
                             </a>
-                            <span class="price">$${p.price < 1 ? p.price.toFixed(6) : p.price.toFixed(4)}</span>
+                            <span class="price">$${p.price < 0.01 ? p.price.toFixed(8) : p.price.toFixed(4)}</span>
                             <span class="liq-info">LP: $${Math.round(p.data.liquidity?.usd || 0).toLocaleString()}</span>
                         </div>`;
                 } else {
@@ -191,27 +193,26 @@
                 }
             });
 
-            const alert = token.gap >= threshold;
             section.innerHTML = `
                 <div class="token-header">
                     <div class="token-info">
                         <span class="name">${token.name}</span>
-                        <span class="addr" onclick="copyToClipboard('${token.mint}')">${token.mint} [COPIA]</span>
+                        <span class="addr" onclick="copyMint('${token.mint}')">${token.mint} [COPIA MINT]</span>
                     </div>
                 </div>
                 <div class="dex-grid">
                     ${dexHTML}
-                    <div class="dex-card arb-card ${alert ? 'alert-border' : ''}">
+                    <div class="dex-card arb-card ${isAlert ? 'alert-border' : ''}">
                         <div class="dex-name" style="color:#666">GAP %</div>
-                        <span class="gap-value ${alert ? 'blink' : ''}">${token.gap.toFixed(2)}%</span>
+                        <span class="gap-value ${isAlert ? 'blink-magenta' : ''}">${token.gap.toFixed(2)}%</span>
                     </div>
-                    <div class="dex-card profit-card">
-                        <div class="dex-name" style="color:var(--glow)">PROFITTO NETTO</div>
-                        <span class="profit-value">$${token.profit.toFixed(2)}</span>
+                    <div class="dex-card profit-card ${isAlert && token.profit > 0 ? 'alert-border' : ''}">
+                        <div class="dex-name" style="color:#666">PROFITTO NETTO</div>
+                        <span class="profit-value ${isAlert && token.profit > 0 ? 'blink-magenta' : ''}">$${token.profit.toFixed(2)}</span>
                     </div>
                 </div>`;
         });
-        document.getElementById('status-msg').innerText = "Update: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "Last Update: " + new Date().toLocaleTimeString();
     }
 
     function timer() {
