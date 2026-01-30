@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Solana Arb Sentry - V3 Final</title>
+    <style>
+        :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 20px; }
+        .header { border-bottom: 2px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; }
+        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        .card { background: var(--card); border: 1px solid #333; padding: 15px; border-radius: 10px; transition: 0.3s; position: relative; }
+        .card.active { border-color: var(--glow); box-shadow: 0 0 15px rgba(0,255,65,0.4); background: #001a00; }
+        .profit { font-size: 1.4rem; font-weight: bold; margin: 10px 0; }
+        .pos { color: var(--glow); } .neg { color: #ff3e3e; }
+        .btn { display: block; width: 100%; text-align: center; padding: 10px; background: transparent; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 5px; margin-top: 10px; font-weight: bold; }
+        .btn:hover { background: var(--glow); color: #000; }
+        #console { background: #000; color: #666; padding: 10px; height: 80px; overflow-y: auto; font-size: 0.8rem; border: 1px solid #222; margin-top: 20px; }
+        input { background: #000; color: var(--glow); border: 1px solid #444; padding: 5px; width: 60px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
+    <div id="status">Inizializzazione...</div>
+</div>
+
+<div class="controls">
+    Quantità Test: <input type="number" id="solAmount" value="5" step="1"> SOL 
+    <span style="margin-left: 20px; font-size: 0.8rem; color: #888;">(Lo scanner pulisce automaticamente i Mint Address nel codice)</span>
+</div>
+
+<div id="dashboard" class="grid"></div>
+
+<div id="console">> Scanner pronto. Se non vedi dati, attiva l'estensione "Allow CORS" nel browser.</div>
+
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+    // Pulizia automatica: rimuoviamo "" o spazi se presenti
+    const RAW_DATA = [
+        "9JK2U7aEkp3tWaFNuaJowWRgNys5DVaKGxWk73VT5ray",
+        "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk",
+        "GnYufMbTAMz1DzkSN2DmwkBzjMTLkM22WvQuN1VCbonk",
+        "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS"
+    ];
+
+    const TOKENS = RAW_DATA.map(t => t.split(' ').pop().trim()); // Prende solo l'ultima parte (l'indirizzo)
+    const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+    async function scan() {
+        const amount = document.getElementById('solAmount').value;
+        const lamports = amount * 1000000000;
+        const status = document.getElementById('status');
+        const dashboard = document.getElementById('dashboard');
+        
+        status.innerText = "Scanning " + TOKENS.length + " tokens...";
+
+        for (const mint of TOKENS) {
+            try {
+                const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_MINT}&outputMint=${SOL_MINT}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`;
+                const r = await fetch(url);
+                const data = await r.json();
+
+                if (data && data.outAmount) {
+                    const out = data.outAmount / 1e9;
+                    const pct = ((out - amount) / amount) * 100;
+                    render(mint, out, pct, data.priceImpactPct, amount);
+                }
+            } catch (e) {
+                document.getElementById('console').innerHTML += `<br>> Errore su ${mint.substring(0,5)}: Controlla estensione CORS.`;
+            }
+        }
+        status.innerText = "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
+    }
+
+    function render(mint, out, pct, impact, inputSize) {
+        let card = document.getElementById(mint);
+        if (!card) {
+            card = document.createElement('div');
+            card.id = mint;
+            card.className = 'card';
+            document.getElementById('dashboard').appendChild(card);
+        }
+
+        const active = pct > 0.05;
+        card.className = `card ${active ? 'active' : ''}`;
+        if (active) document.getElementById('beep').play().catch(()=>{});
+
+        card.innerHTML = `
+            <div style="font-size:0.7rem; color:#666;">${mint}</div>
+            <div class="profit ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%</div>
+            <div style="font-size:0.9rem;">
+                In: ${inputSize} SOL → Out: <b>${out.toFixed(4)} SOL</b><br>
+                Impact: <span style="color:${impact > 0.5 ? '#ff3e3e' : '#aaa'}">${impact}%</span>
+            </div>
+            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI SU JUPITER</a>
+        `;
+    }
+
+    setInterval(scan, 5000);
+    scan();
+</script>
+</body>
+</html>
