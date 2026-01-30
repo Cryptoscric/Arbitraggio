@@ -2,175 +2,109 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Solana Pool Finder & Price Sentry</title>
+    <title>Sentry Pro - Debug Connection</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; }
-        body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
-        .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 30px; align-items: center; }
-        .controls label { font-size: 0.9rem; font-weight: bold; color: var(--glow); text-transform: uppercase; }
-        .controls input { background: #000; color: #fff; border: 2px solid #444; padding: 8px; border-radius: 6px; width: 90px; font-size: 1rem; font-weight: bold; text-align: center; }
-        
-        .timer-container { flex-grow: 1; text-align: right; }
-        #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
-        #countdown-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
-        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
-
-        .grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
-        .token-section { background: var(--card); border: 1px solid #333; border-radius: 15px; padding: 20px; }
-        .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
-        
-        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        @media (max-width: 900px) { .dex-grid { grid-template-columns: 1fr 1fr; } }
-        
-        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 15px; border-radius: 10px; text-align: center; color: #ffffff !important; }
-        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 15px var(--glow); }
-        .dex-card.na { opacity: 0.25; border-style: dotted; }
-        
-        .dex-name { font-size: 0.8rem; font-weight: 800; color: #ffffff !important; margin-bottom: 8px; text-transform: uppercase; }
-        .price { font-size: 1.4rem; font-weight: 800; color: #ffffff !important; display: block; margin: 8px 0; }
-        .pct { font-size: 1rem; font-weight: 900; padding: 3px 8px; border-radius: 4px; display: inline-block; }
-        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.1); }
-        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.1); }
-        
-        #status-msg { font-size: 0.85rem; color: #888; font-weight: bold; }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .header { border-bottom: 3px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; }
+        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; border: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .token-section { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 15px; }
+        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 15px; border-radius: 8px; text-align: center; color: white !important; }
+        .price { font-size: 1.3rem; font-weight: bold; display: block; margin: 5px 0; color: white !important; }
+        .status-tag { font-size: 0.7rem; color: #ffa500; background: #221100; padding: 2px 6px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0; font-size: 1.6rem;">SOLANA POOL & PRICE SENTRY</h1>
-    <div id="status-msg">Caricamento...</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA POOL SENTRY</h1>
+    <div id="global-status" style="font-size:0.8rem; color:#888;">Inizializzazione...</div>
 </div>
 
 <div class="controls">
     <div>
-        <label>TEST AMOUNT (SOL)</label><br>
-        <input type="number" id="testAmount" value="1" step="0.1">
+        <label style="color:var(--glow)">TEST SOL:</label>
+        <input type="number" id="testAmount" value="0.5" step="0.1" style="background:#000; color:#fff; border:1px solid #555; padding:5px; width:60px;">
     </div>
-    <div>
-        <label>ALERT (%)</label><br>
-        <input type="number" id="alertThreshold" value="0.01" step="0.01">
-    </div>
-    <div class="timer-container">
-        <span id="timer-text">SCAN TRA: 15s</span>
-        <div id="countdown-bar"><div id="progress"></div></div>
+    <div style="flex-grow:1; text-align:right;">
+        <span id="timer" style="color:var(--glow)">Scan...</span>
     </div>
 </div>
 
 <div id="main-grid" class="grid"></div>
-<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
     const SOL = "So11111111111111111111111111111111111111112";
-    const DEX_WHITELIST = ["Jupiter", "Orca", "Meteora", "Raydium"];
+    const DEXES = ["Jupiter", "Orca", "Meteora", "Raydium"];
     let mints = [];
-    let timeLeft = 15;
 
     async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            return text.split(/\r?\n/)
-                .map(l => l.trim().split(/\s+/).pop())
-                .filter(addr => addr && addr.length > 30);
+            return text.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(a => a.length > 30);
         } catch (e) { return []; }
     }
 
-    async function fetchPoolsAndPrices(mint, amount) {
+    async function getPrice(mint, amount) {
         try {
             const lamports = Math.floor(amount * 1e9);
-            // Chiediamo a Jupiter TUTTE le rotte possibili, non solo la migliore
-            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0&onlyDirectRoutes=false`;
+            // Proviamo a chiamare l'API v6 di Jupiter
+            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`;
             const r = await fetch(url);
-            const data = await r.json();
-            
-            // Mappa dei risultati per DEX
-            let results = {};
-            if (data.routePlan) {
-                data.routePlan.forEach(plan => {
-                    const name = plan.swapInfo.label;
-                    const out = data.outAmount / 1e9;
-                    results[name] = out;
-                });
-                // Aggiungiamo sempre il "Best" di Jupiter
-                results["Jupiter"] = data.outAmount / 1e9;
-            }
-            return results;
-        } catch (e) { return null; }
+            if (!r.ok) return { error: "HTTP " + r.status };
+            return await r.json();
+        } catch (e) {
+            return { error: "CORS / Network Error" };
+        }
     }
 
-    async function updateUI() {
-        const amount = parseFloat(document.getElementById('testAmount').value) || 1;
-        const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
-        const grid = document.getElementById('main-grid');
-
+    async function update() {
+        const amount = parseFloat(document.getElementById('testAmount').value);
         for (const mint of mints) {
-            let section = document.getElementById('sec-' + mint);
+            let section = document.getElementById(mint);
             if (!section) {
                 section = document.createElement('div');
-                section.id = 'sec-' + mint;
+                section.id = mint;
                 section.className = 'token-section';
-                section.innerHTML = `
-                    <div class="token-header">
-                        <span style="color:var(--glow)">TOKEN: ${mint.substring(0,10)}...</span>
-                        <span style="font-size:0.7rem; color:#555;">${mint}</span>
-                    </div>
-                    <div class="dex-grid" id="grid-${mint}"></div>`;
-                grid.appendChild(section);
+                section.innerHTML = `<div>TOKEN: ${mint.substring(0,10)}... <span id="st-${mint}" class="status-tag">In attesa...</span></div><div class="dex-grid" id="grid-${mint}"></div>`;
+                document.getElementById('main-grid').appendChild(section);
             }
 
-            const dexGrid = document.getElementById('grid-' + mint);
-            const prices = await fetchPoolsAndPrices(mint, amount);
-
-            DEX_WHITELIST.forEach(dexLabel => {
-                let card = document.getElementById(`card-${mint}-${dexLabel}`);
-                if (!card) {
-                    card = document.createElement('div');
-                    card.id = `card-${mint}-${dexLabel}`;
-                    card.className = 'dex-card';
-                    dexGrid.appendChild(card);
-                }
-
-                // Cerchiamo se il DEX è presente nei dati di Jupiter (case insensitive)
-                const foundDexKey = Object.keys(prices || {}).find(k => k.toLowerCase().includes(dexLabel.toLowerCase()));
-                const priceValue = prices ? prices[foundDexKey] : null;
-
-                if (priceValue) {
-                    const pct = ((priceValue - amount) / amount) * 100;
-                    const isProfitable = pct >= threshold;
-                    card.classList.remove('na');
-                    card.classList.toggle('active', isProfitable);
-                    if(isProfitable) document.getElementById('beep').play().catch(()=>{});
-
-                    card.innerHTML = `
-                        <div class="dex-name">${dexLabel}</div>
-                        <span class="price">${priceValue.toFixed(5)} SOL</span>
-                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-                    `;
-                } else {
-                    card.classList.add('na');
-                    card.innerHTML = `<div class="dex-name">${dexLabel}</div><div style="margin-top:15px; font-size:0.7rem; color:#444;">POOL NON TROVATO</div>`;
-                }
-            });
+            const data = await getPrice(mint, amount);
+            const statusEl = document.getElementById(`st-${mint}`);
+            
+            if (data.error) {
+                statusEl.innerText = data.error;
+                statusEl.style.color = "#ff4444";
+            } else if (data.outAmount) {
+                statusEl.innerText = "Dati Ricevuti";
+                statusEl.style.color = var(--glow);
+                const price = data.outAmount / 1e9;
+                
+                // Aggiorna i riquadri
+                DEXES.forEach(dex => {
+                    let card = document.getElementById(`c-${mint}-${dex}`);
+                    if (!card) {
+                        card = document.createElement('div');
+                        card.id = `c-${mint}-${dex}`;
+                        card.className = 'dex-card';
+                        document.getElementById(`grid-${mint}`).appendChild(card);
+                    }
+                    card.innerHTML = `<small>${dex}</small><span class="price">${price.toFixed(5)}</span>`;
+                });
+            } else {
+                statusEl.innerText = "Nessuna Rotta (Poca Liquidità?)";
+            }
         }
-        document.getElementById('status-msg').innerText = "ULTIMO SCAN: " + new Date().toLocaleTimeString();
-    }
-
-    function runTimer() {
-        setInterval(() => {
-            timeLeft--;
-            document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
-            document.getElementById('timer-text').innerText = `SCAN TRA: ${timeLeft}s`;
-            if (timeLeft <= 0) { timeLeft = 15; updateUI(); }
-        }, 1000);
     }
 
     async function init() {
         mints = await loadMints();
-        if (mints.length > 0) { updateUI(); runTimer(); }
+        update();
+        setInterval(update, 15000);
     }
 
     init();
