@@ -2,118 +2,38 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLANA ARB SENTRY - Pro Edition</title>
+    <title>Solana Pool Finder & Price Sentry</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; }
+        body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: var(--bg); 
-            color: var(--text); 
-            margin: 0; 
-            padding: 20px; 
-        }
-
-        /* HEADER & LAYOUT */
-        .header { 
-            border-bottom: 3px solid var(--glow); 
-            padding-bottom: 15px; 
-            margin-bottom: 25px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-        }
-
-        .controls { 
-            background: #1a1a1a; 
-            padding: 20px; 
-            border-radius: 10px; 
-            margin-bottom: 25px; 
-            border: 1px solid #333; 
-            display: flex; 
-            gap: 30px; 
-            align-items: center; 
-        }
-
-        .controls label { 
-            font-size: 0.9rem; 
-            font-weight: bold; 
-            color: var(--glow); 
-            text-transform: uppercase; 
-        }
-
-        .controls input { 
-            background: #000; 
-            color: #fff; 
-            border: 2px solid #444; 
-            padding: 8px; 
-            border-radius: 6px; 
-            width: 90px; 
-            font-size: 1rem; 
-            font-weight: bold; 
-            text-align: center; 
-        }
-
-        /* TIMER & PROGRESS BAR */
+        .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 30px; align-items: center; }
+        .controls label { font-size: 0.9rem; font-weight: bold; color: var(--glow); text-transform: uppercase; }
+        .controls input { background: #000; color: #fff; border: 2px solid #444; padding: 8px; border-radius: 6px; width: 90px; font-size: 1rem; font-weight: bold; text-align: center; }
+        
         .timer-container { flex-grow: 1; text-align: right; }
         #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
-        #countdown-bar { width: 100%; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
-        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; box-shadow: 0 0 10px var(--glow); }
+        #countdown-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
 
-        /* TOKEN SECTIONS */
         .grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
         .token-section { background: var(--card); border: 1px solid #333; border-radius: 15px; padding: 20px; }
-        .token-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            border-bottom: 2px solid #222; 
-            padding-bottom: 10px; 
-            margin-bottom: 20px; 
-        }
-        .token-header span:first-child { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
-
-        /* DEX CARDS */
+        .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
+        
         .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 900px) { .dex-grid { grid-template-columns: 1fr 1fr; } }
         
-        .dex-card { 
-            background: #1f1f1f; 
-            border: 2px solid #444; 
-            padding: 20px; 
-            border-radius: 10px; 
-            text-align: center; 
-            color: #ffffff !important; /* Forza il bianco ovunque */
-        }
-        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
-        .dex-card.na { opacity: 0.3; border-style: dashed; }
+        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 15px; border-radius: 10px; text-align: center; color: #ffffff !important; }
+        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 15px var(--glow); }
+        .dex-card.na { opacity: 0.25; border-style: dotted; }
         
-        .dex-name { 
-            font-size: 0.85rem; 
-            font-weight: 800; 
-            color: #ffffff !important; 
-            margin-bottom: 12px; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-        }
-        .price { 
-            font-size: 1.5rem; 
-            font-weight: 800; 
-            color: #ffffff !important; 
-            margin: 10px 0; 
-            display: block;
-        }
-        
-        .pct { 
-            font-size: 1.1rem; 
-            font-weight: 900; 
-            padding: 4px 10px; 
-            border-radius: 4px; 
-            display: inline-block; 
-        }
-        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.15); }
-        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.15); }
+        .dex-name { font-size: 0.8rem; font-weight: 800; color: #ffffff !important; margin-bottom: 8px; text-transform: uppercase; }
+        .price { font-size: 1.4rem; font-weight: 800; color: #ffffff !important; display: block; margin: 8px 0; }
+        .pct { font-size: 1rem; font-weight: 900; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.1); }
+        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.1); }
         
         #status-msg { font-size: 0.85rem; color: #888; font-weight: bold; }
     </style>
@@ -121,87 +41,69 @@
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY</h1>
-    <div id="status-msg">Inizializzazione...</div>
+    <h1 style="color: var(--glow); margin:0; font-size: 1.6rem;">SOLANA POOL & PRICE SENTRY</h1>
+    <div id="status-msg">Caricamento...</div>
 </div>
 
 <div class="controls">
     <div>
         <label>TEST AMOUNT (SOL)</label><br>
-        <input type="number" id="testAmount" value="5" step="0.5">
+        <input type="number" id="testAmount" value="1" step="0.1">
     </div>
     <div>
-        <label>ALERT THRESHOLD (%)</label><br>
-        <input type="number" id="alertThreshold" value="0.01" step="0.005">
+        <label>ALERT (%)</label><br>
+        <input type="number" id="alertThreshold" value="0.01" step="0.01">
     </div>
     <div class="timer-container">
-        <span id="timer-text">PROSSIMO AGGIORNAMENTO: 15s</span>
+        <span id="timer-text">SCAN TRA: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
 
 <div id="main-grid" class="grid"></div>
-
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    const TARGET_DEX = [
-        { id: "Jupiter", label: "JUPITER BEST" },
-        { id: "orca", label: "ORCA" },
-        { id: "meteora", label: "METEORA" },
-        { id: "raydium", label: "RAYDIUM" }
-    ];
-
+    const SOL = "So11111111111111111111111111111111111111112";
+    const DEX_WHITELIST = ["Jupiter", "Orca", "Meteora", "Raydium"];
     let mints = [];
-    const refreshTime = 15; 
-    let timeLeft = refreshTime;
+    let timeLeft = 15;
 
-    // 1. CARICAMENTO E PULIZIA MINT.TXT
     async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            const lines = text.split(/\r?\n/);
-            const cleanMints = lines
-                .map(line => line.trim())
-                .filter(line => line.length > 0)
-                .map(line => {
-                    const parts = line.split(/\s+/);
-                    return parts[parts.length - 1]; // Prende solo l'ultimo blocco (l'indirizzo)
-                })
-                .filter(addr => addr.length >= 32 && addr.length <= 48);
-            
-            console.log("Mints caricati:", cleanMints);
-            return cleanMints;
-        } catch (e) {
-            document.getElementById('status-msg').innerText = "ERRORE: mint.txt non trovato";
-            return [];
-        }
+            return text.split(/\r?\n/)
+                .map(l => l.trim().split(/\s+/).pop())
+                .filter(addr => addr && addr.length > 30);
+        } catch (e) { return []; }
     }
 
-    // 2. RECUPERO QUOTE DALL'API JUPITER
-    async function getQuote(mint, dexId, amountSol) {
+    async function fetchPoolsAndPrices(mint, amount) {
         try {
-            const lamports = Math.floor(amountSol * 1000000000);
-            let url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`;
+            const lamports = Math.floor(amount * 1e9);
+            // Chiediamo a Jupiter TUTTE le rotte possibili, non solo la migliore
+            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0&onlyDirectRoutes=false`;
+            const r = await fetch(url);
+            const data = await r.json();
             
-            // Seleziona il DEX specifico o lascia fare a Jupiter
-            if (dexId !== "Jupiter") {
-                url += `&dexes=${dexId}&onlyDirectRoutes=true`;
+            // Mappa dei risultati per DEX
+            let results = {};
+            if (data.routePlan) {
+                data.routePlan.forEach(plan => {
+                    const name = plan.swapInfo.label;
+                    const out = data.outAmount / 1e9;
+                    results[name] = out;
+                });
+                // Aggiungiamo sempre il "Best" di Jupiter
+                results["Jupiter"] = data.outAmount / 1e9;
             }
-
-            const response = await fetch(url);
-            if (!response.ok) return null;
-            return await response.json();
-        } catch (e) {
-            return null;
-        }
+            return results;
+        } catch (e) { return null; }
     }
 
-    // 3. AGGIORNAMENTO DASHBOARD
-    async function scan() {
-        const testSize = parseFloat(document.getElementById('testAmount').value) || 5;
+    async function updateUI() {
+        const amount = parseFloat(document.getElementById('testAmount').value) || 1;
         const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
         const grid = document.getElementById('main-grid');
 
@@ -213,75 +115,62 @@
                 section.className = 'token-section';
                 section.innerHTML = `
                     <div class="token-header">
-                        <span>TOKEN: ${mint.substring(0,10)}...</span>
-                        <span style="font-size:0.8rem; color:#666; font-family:monospace;">${mint}</span>
+                        <span style="color:var(--glow)">TOKEN: ${mint.substring(0,10)}...</span>
+                        <span style="font-size:0.7rem; color:#555;">${mint}</span>
                     </div>
                     <div class="dex-grid" id="grid-${mint}"></div>`;
                 grid.appendChild(section);
             }
 
             const dexGrid = document.getElementById('grid-' + mint);
+            const prices = await fetchPoolsAndPrices(mint, amount);
 
-            for (const dex of TARGET_DEX) {
-                const data = await getQuote(mint, dex.id, testSize);
-                let card = document.getElementById(`card-${mint}-${dex.id}`);
-
+            DEX_WHITELIST.forEach(dexLabel => {
+                let card = document.getElementById(`card-${mint}-${dexLabel}`);
                 if (!card) {
                     card = document.createElement('div');
-                    card.id = `card-${mint}-${dex.id}`;
+                    card.id = `card-${mint}-${dexLabel}`;
                     card.className = 'dex-card';
                     dexGrid.appendChild(card);
                 }
 
-                if (data && data.outAmount) {
-                    const out = data.outAmount / 1e9;
-                    const pct = ((out - testSize) / testSize) * 100;
-                    const isAlert = pct >= threshold;
-                    
+                // Cerchiamo se il DEX è presente nei dati di Jupiter (case insensitive)
+                const foundDexKey = Object.keys(prices || {}).find(k => k.toLowerCase().includes(dexLabel.toLowerCase()));
+                const priceValue = prices ? prices[foundDexKey] : null;
+
+                if (priceValue) {
+                    const pct = ((priceValue - amount) / amount) * 100;
+                    const isProfitable = pct >= threshold;
                     card.classList.remove('na');
-                    card.classList.toggle('active', isAlert);
-                    if(isAlert) document.getElementById('beep').play().catch(()=>{});
+                    card.classList.toggle('active', isProfitable);
+                    if(isProfitable) document.getElementById('beep').play().catch(()=>{});
 
                     card.innerHTML = `
-                        <div class="dex-name">${dex.label}</div>
-                        <span class="price">${out.toFixed(5)} SOL</span>
+                        <div class="dex-name">${dexLabel}</div>
+                        <span class="price">${priceValue.toFixed(5)} SOL</span>
                         <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
                     `;
                 } else {
                     card.classList.add('na');
-                    card.innerHTML = `
-                        <div class="dex-name">${dex.label}</div>
-                        <span class="price" style="color:#444 !important; font-size:0.9rem; margin-top:15px;">NO POOL / ERROR</span>
-                    `;
+                    card.innerHTML = `<div class="dex-name">${dexLabel}</div><div style="margin-top:15px; font-size:0.7rem; color:#444;">POOL NON TROVATO</div>`;
                 }
-            }
+            });
         }
-        document.getElementById('status-msg').innerText = "LIVE: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "ULTIMO SCAN: " + new Date().toLocaleTimeString();
     }
 
-    // 4. GESTIONE TIMER E AVVIO
-    function startTimer() {
+    function runTimer() {
         setInterval(() => {
             timeLeft--;
-            const progress = document.getElementById('progress');
-            if(progress) progress.style.width = (timeLeft / refreshTime * 100) + "%";
-            document.getElementById('timer-text').innerText = `PROSSIMO AGGIORNAMENTO: ${timeLeft}s`;
-
-            if (timeLeft <= 0) {
-                timeLeft = refreshTime;
-                scan();
-            }
+            document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
+            document.getElementById('timer-text').innerText = `SCAN TRA: ${timeLeft}s`;
+            if (timeLeft <= 0) { timeLeft = 15; updateUI(); }
         }, 1000);
     }
 
     async function init() {
         mints = await loadMints();
-        if (mints.length > 0) {
-            scan();
-            startTimer();
-        } else {
-            document.getElementById('status-msg').innerText = "ERRORE: Nessun mint trovato in mint.txt";
-        }
+        if (mints.length > 0) { updateUI(); runTimer(); }
     }
 
     init();
