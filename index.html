@@ -2,9 +2,9 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>SOLANA ARB SENTRY - Compact Mode</title>
+    <title>SOLANA ARB SENTRY - Sorting Mode</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
@@ -17,22 +17,21 @@
         #countdown-bar { width: 150px; height: 4px; background: #222; border-radius: 2px; float: right; overflow: hidden; }
         #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
 
-        .grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
-        .token-section { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 12px; }
+        #main-grid { display: flex; flex-direction: column; gap: 15px; }
+        .token-section { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 12px; order: 0; }
         
         .token-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
         .token-info .name { color: var(--glow); font-size: 1rem; font-weight: 900; }
-        .token-info .addr { color: #555; font-size: 0.7rem; display: block; margin-top: 2px; }
+        .token-info .addr { color: var(--magenta); font-size: 0.75rem; font-weight: 600; display: block; margin-top: 2px; letter-spacing: 0.5px; }
         
         .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        
         .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; }
         .arb-card { border: 1px solid #444; background: #000; }
         .alert-border { border-color: var(--glow); box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1); }
 
         .dex-name { font-size: 0.75rem; font-weight: 800; margin-bottom: 5px; text-transform: uppercase; color: #888; }
-        .dex-name.highest { color: var(--glow) !important; }
-        .dex-name.lowest { color: var(--red) !important; }
+        .dex-name.highest { color: var(--glow) !important; text-shadow: 0 0 5px var(--glow); }
+        .dex-name.lowest { color: var(--red) !important; text-shadow: 0 0 5px var(--red); }
         
         .price { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 2px 0; display: block; }
         .gap-value { font-size: 1.3rem; font-weight: 900; color: #444; }
@@ -40,14 +39,14 @@
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
         .blink { color: var(--glow) !important; animation: blink 0.6s infinite; }
 
-        .liq-info { font-size: 0.75rem; font-weight: 600; color: #fff; display: block; margin-top: 5px; opacity: 0.8; }
+        .liq-info { font-size: 0.75rem; font-weight: 600; color: #fff; display: block; margin-top: 5px; opacity: 0.9; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY COMPACT</h2>
-    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Ready</div>
+    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY - RANKED BY GAP</h2>
+    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Sorting active...</div>
 </div>
 
 <div class="controls">
@@ -56,12 +55,12 @@
         <input type="number" id="threshold" value="1.0" step="0.1">
     </div>
     <div class="timer-container">
-        <span id="timer-text">SCAN: 15s</span>
+        <span id="timer-text">RE-RANKING: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
 
-<div id="main-grid" class="grid"></div>
+<div id="main-grid"></div>
 
 <script>
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
@@ -81,101 +80,103 @@
     async function scan() {
         const threshold = parseFloat(document.getElementById('threshold').value) || 1.0;
         const grid = document.getElementById('main-grid');
+        let tokenResults = [];
 
+        // 1. Fase di raccolta dati
         for (const mint of mints) {
             try {
                 const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
                 const data = await response.json();
                 const pairs = data.pairs || [];
                 
-                // Recupera info token dal primo pair disponibile
-                const tokenName = pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Unknown Token";
-                
-                let section = document.getElementById('sec-' + mint);
-                if (!section) {
-                    section = document.createElement('div');
-                    section.id = 'sec-' + mint;
-                    section.className = 'token-section';
-                    section.innerHTML = `
-                        <div class="token-header">
-                            <div class="token-info">
-                                <span class="name" id="name-${mint}">${tokenName}</span>
-                                <span class="addr">${mint}</span>
-                            </div>
-                        </div>
-                        <div class="dex-grid" id="grid-${mint}"></div>`;
-                    grid.appendChild(section);
-                } else {
-                    document.getElementById(`name-${mint}`).innerText = tokenName;
-                }
-
-                const dexGrid = document.getElementById('grid-' + mint);
                 let activePrices = [];
                 TARGET_DEX_IDS.forEach(dex => {
                     const p = pairs.find(pair => pair.dexId.toLowerCase() === dex.toLowerCase());
-                    if (p) activePrices.push({ dex: dex, price: parseFloat(p.priceUsd) });
+                    if (p) activePrices.push({ dex: dex, price: parseFloat(p.priceUsd), pairData: p });
                 });
 
-                const maxP = activePrices.length > 0 ? Math.max(...activePrices.map(o => o.price)) : 0;
-                const minP = activePrices.length > 0 ? Math.min(...activePrices.map(o => o.price)) : 0;
-
-                TARGET_DEX_IDS.forEach(dex => {
-                    let card = document.getElementById(`c-${mint}-${dex}`);
-                    if (!card) {
-                        card = document.createElement('div');
-                        card.id = `c-${mint}-${dex}`;
-                        card.className = 'dex-card';
-                        dexGrid.appendChild(card);
-                    }
-
-                    const p = pairs.find(pair => pair.dexId.toLowerCase() === dex.toLowerCase());
-                    if (p) {
-                        const curP = parseFloat(p.priceUsd);
-                        let cls = "";
-                        if (activePrices.length > 1 && maxP !== minP) {
-                            if (curP === maxP) cls = "highest";
-                            else if (curP === minP) cls = "lowest";
-                        }
-                        card.innerHTML = `
-                            <div class="dex-name ${cls}">${dex.toUpperCase()}</div>
-                            <span class="price">$${curP < 1 ? curP.toFixed(6) : curP.toFixed(4)}</span>
-                            <span class="liq-info">L: $${Math.round(p.liquidity?.usd || 0).toLocaleString()}</span>
-                        `;
-                    } else {
-                        card.innerHTML = `<div class="dex-name">${dex}</div><span style="font-size:0.7rem; color:#333;">N/A</span>`;
-                    }
-                });
-
-                let gapCard = document.getElementById(`c-${mint}-gap`);
-                if (!gapCard) {
-                    gapCard = document.createElement('div');
-                    gapCard.id = `c-${mint}-gap`;
-                    gapCard.className = 'dex-card arb-card';
-                    dexGrid.appendChild(gapCard);
-                }
-
+                let gap = 0;
                 if (activePrices.length > 1) {
-                    const gap = ((maxP - minP) / minP) * 100;
-                    const alert = gap >= threshold;
-                    gapCard.className = `dex-card arb-card ${alert ? 'alert-border' : ''}`;
-                    gapCard.innerHTML = `
-                        <div class="dex-name" style="color:#666">GAP %</div>
-                        <span class="gap-value ${alert ? 'blink' : ''}">${gap.toFixed(2)}%</span>
-                        <div style="font-size:0.6rem; color:#333; margin-top:2px;">THR: ${threshold}%</div>
-                    `;
-                } else {
-                    gapCard.innerHTML = `<div class="dex-name">GAP</div><span style="font-size:0.7rem; color:#222;">-</span>`;
+                    const prices = activePrices.map(o => o.price);
+                    const maxP = Math.max(...prices);
+                    const minP = Math.min(...prices);
+                    gap = ((maxP - minP) / minP) * 100;
                 }
 
+                tokenResults.push({
+                    mint: mint,
+                    name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Token",
+                    gap: gap,
+                    activePrices: activePrices,
+                    allPairs: pairs
+                });
             } catch (e) { console.error(mint, e); }
         }
+
+        // 2. Ordinamento per GAP decrescente
+        tokenResults.sort((a, b) => b.gap - a.gap);
+
+        // 3. Renderizzazione ordinata tramite CSS 'order'
+        tokenResults.forEach((token, index) => {
+            let section = document.getElementById('sec-' + token.mint);
+            if (!section) {
+                section = document.createElement('div');
+                section.id = 'sec-' + token.mint;
+                section.className = 'token-section';
+                grid.appendChild(section);
+            }
+            
+            section.style.order = index; // Definisce la posizione visiva
+            
+            const maxP = token.activePrices.length > 0 ? Math.max(...token.activePrices.map(o => o.price)) : 0;
+            const minP = token.activePrices.length > 0 ? Math.min(...token.activePrices.map(o => o.price)) : 0;
+
+            let dexHTML = '';
+            TARGET_DEX_IDS.forEach(dex => {
+                const p = token.activePrices.find(ap => ap.dex.toLowerCase() === dex.toLowerCase());
+                if (p) {
+                    let cls = "";
+                    if (token.activePrices.length > 1 && maxP !== minP) {
+                        if (p.price === maxP) cls = "highest";
+                        else if (p.price === minP) cls = "lowest";
+                    }
+                    dexHTML += `
+                        <div class="dex-card">
+                            <div class="dex-name ${cls}">${dex.toUpperCase()}</div>
+                            <span class="price">$${p.price < 1 ? p.price.toFixed(6) : p.price.toFixed(4)}</span>
+                            <span class="liq-info">L: $${Math.round(p.pairData.liquidity?.usd || 0).toLocaleString()}</span>
+                        </div>`;
+                } else {
+                    dexHTML += `<div class="dex-card"><div class="dex-name">${dex}</div><span style="font-size:0.7rem; color:#333;">N/A</span></div>`;
+                }
+            });
+
+            const isAlert = token.gap >= threshold;
+            dexHTML += `
+                <div class="dex-card arb-card ${isAlert ? 'alert-border' : ''}">
+                    <div class="dex-name" style="color:#666">GAP %</div>
+                    <span class="gap-value ${isAlert ? 'blink' : ''}">${token.gap.toFixed(2)}%</span>
+                    <div style="font-size:0.6rem; color:#333; margin-top:2px;">RANK: #${index + 1}</div>
+                </div>`;
+
+            section.innerHTML = `
+                <div class="token-header">
+                    <div class="token-info">
+                        <span class="name">${token.name}</span>
+                        <span class="addr">${token.mint}</span>
+                    </div>
+                </div>
+                <div class="dex-grid">${dexHTML}</div>`;
+        });
+        
+        document.getElementById('status-msg').innerText = "LAST RANKING: " + new Date().toLocaleTimeString();
     }
 
     function timer() {
         setInterval(() => {
             timeLeft--;
             document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
-            document.getElementById('timer-text').innerText = `SCAN: ${timeLeft}s`;
+            document.getElementById('timer-text').innerText = `RE-RANKING: ${timeLeft}s`;
             if (timeLeft <= 0) { timeLeft = 15; scan(); }
         }, 1000);
     }
