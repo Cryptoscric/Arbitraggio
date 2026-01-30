@@ -2,54 +2,63 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Arb Sentry - Top 4 DEX</title>
+    <title>Arb Sentry - High Visibility</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #111; --text: #eee; }
-        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .header { border-bottom: 2px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; --subtext: #bbbbbb; }
+        body { font-family: 'Segoe UI', 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.4; }
         
-        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
-        .controls label { font-size: 0.8rem; color: var(--glow); }
-        .controls input { background: #000; color: var(--glow); border: 1px solid #444; padding: 6px; border-radius: 4px; width: 70px; font-family: monospace; }
+        .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 30px; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .controls label { font-size: 0.9rem; font-weight: bold; color: var(--glow); text-transform: uppercase; letter-spacing: 1px; }
+        .controls input { background: #000; color: #fff; border: 2px solid #444; padding: 8px; border-radius: 6px; width: 90px; font-size: 1rem; font-weight: bold; text-align: center; }
+        .controls input:focus { border-color: var(--glow); outline: none; }
         
         .timer-container { flex-grow: 1; text-align: right; }
-        #countdown-bar { width: 100%; height: 4px; background: #222; margin-top: 8px; border-radius: 2px; overflow: hidden; }
-        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
+        #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
+        #countdown-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; box-shadow: 0 0 10px var(--glow); }
 
-        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        .token-section { background: var(--card); border: 1px solid #222; border-radius: 12px; padding: 15px; }
-        .token-header { display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 5px; margin-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
+        .token-section { background: var(--card); border: 1px solid #333; border-radius: 15px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+        .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
+        .token-header span:first-child { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
+        .mint-id { font-size: 0.8rem; color: #666; font-family: monospace; }
         
-        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        @media (max-width: 800px) { .dex-grid { grid-template-columns: 1fr 1fr; } }
+        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
         
-        .dex-card { background: #181818; border: 1px solid #333; padding: 15px; border-radius: 8px; text-align: center; }
-        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); background: #001a00; }
+        .dex-card { background: #1f1f1f; border: 2px solid #333; padding: 20px; border-radius: 10px; text-align: center; transition: 0.3s; }
+        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
+        .dex-card.na { opacity: 0.4; border-style: dashed; }
         
-        .dex-name { font-size: 0.7rem; font-weight: bold; color: #555; margin-bottom: 5px; }
-        .price { font-size: 1.1rem; font-weight: bold; }
-        .pos { color: var(--glow); }
-        .neg { color: #ff4444; }
+        .dex-name { font-size: 0.8rem; font-weight: 900; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .price { font-size: 1.4rem; font-weight: 800; color: #ffffff; margin: 10px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .pct { font-size: 1.1rem; font-weight: 900; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.1); }
+        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.1); }
+        
+        #status-msg { font-size: 0.85rem; color: #888; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0;">ARB SENTRY <span style="font-size: 0.8rem; color: #555;">(TOP 4 DEX)</span></h1>
-    <div id="status" style="font-size:0.8rem; color:#666;">Inizializzazione...</div>
+    <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY <span style="font-size: 0.9rem; color: #555;">(JUP•ORCA•METEORA•RAY)</span></h1>
+    <div id="status-msg">Inizializzazione sistema...</div>
 </div>
 
 <div class="controls">
     <div>
-        <label>TEST (SOL):</label>
+        <label>TEST AMOUNT (SOL)</label><br>
         <input type="number" id="testAmount" value="5" step="0.5">
     </div>
     <div>
-        <label>ALERT (%):</label>
+        <label>ALERT THRESHOLD (%)</label><br>
         <input type="number" id="alertThreshold" value="0.01" step="0.005">
     </div>
     <div class="timer-container">
-        <span id="timer-text" style="font-size: 0.8rem; color:#888;">Prossimo scan in: 15s</span>
+        <span id="timer-text">PROSSIMO SCAN: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
@@ -60,22 +69,22 @@
 
 <script>
     const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    // I 4 pilastri della liquidità Solana
     const TARGET_DEX = [
-        { id: "Jupiter", label: "JUPITER (BEST)" },
+        { id: "Jupiter", label: "JUPITER BEST" },
         { id: "Orca", label: "ORCA" },
         { id: "Meteora", label: "METEORA" },
         { id: "Raydium", label: "RAYDIUM" }
     ];
 
     let mints = [];
-    let refreshTime = 15; 
+    const refreshTime = 15; 
     let timeLeft = refreshTime;
 
     async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
+            // Pulisce gli indirizzi estratti dal file
             return text.split(/\r?\n/)
                        .map(l => l.trim().split(/\s+/).pop())
                        .filter(addr => addr && addr.length > 30);
@@ -85,7 +94,6 @@
     async function getQuote(mint, dexId, amountSol) {
         try {
             const lamports = Math.floor(amountSol * 1000000000);
-            // Selezioniamo Jupiter (Best Route) o forziamo un DEX specifico
             const dexFilter = (dexId === "Jupiter") ? "" : `&dexes=${dexId}&onlyDirectRoutes=true`;
             const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0${dexFilter}`;
             const r = await fetch(url);
@@ -104,7 +112,12 @@
                 section = document.createElement('div');
                 section.id = 'sec-' + mint;
                 section.className = 'token-section';
-                section.innerHTML = `<div class="token-header"><span style="color:var(--glow); font-size:0.7rem;">MINT: ${mint}</span></div><div class="dex-grid" id="grid-${mint}"></div>`;
+                section.innerHTML = `
+                    <div class="token-header">
+                        <span>TOKEN: ${mint.substring(0,12)}...</span>
+                        <span class="mint-id">${mint}</span>
+                    </div>
+                    <div class="dex-grid" id="grid-${mint}"></div>`;
                 grid.appendChild(section);
             }
 
@@ -126,20 +139,22 @@
                     const pct = ((out - testSize) / testSize) * 100;
                     const alert = pct >= threshold;
                     
+                    card.classList.remove('na');
                     card.classList.toggle('active', alert);
                     if(alert) document.getElementById('beep').play().catch(()=>{});
 
                     card.innerHTML = `
-                        <div class="dex-name">${dex.label} ${dex.id === "Jupiter" ? '⚡' : ''}</div>
+                        <div class="dex-name">${dex.label}</div>
                         <div class="price">${out.toFixed(5)} SOL</div>
-                        <div class="${pct >= 0 ? 'pos' : 'neg'}" style="font-size:0.9rem;">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
+                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
                     `;
                 } else {
-                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#333; font-size:0.7rem;">N/A</div>`;
+                    card.classList.add('na');
+                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#444; font-weight:bold; margin-top:15px;">NO LIQUIDITY</div>`;
                 }
             }
         }
-        document.getElementById('status').innerText = "Last Update: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "ULTIMO AGGIORNAMENTO: " + new Date().toLocaleTimeString();
     }
 
     function startTimer() {
@@ -147,7 +162,7 @@
             timeLeft--;
             const progWidth = (timeLeft / refreshTime) * 100;
             document.getElementById('progress').style.width = progWidth + "%";
-            document.getElementById('timer-text').innerText = `Prossimo scan: ${timeLeft}s`;
+            document.getElementById('timer-text').innerText = `PROSSIMO SCAN: ${timeLeft}s`;
 
             if (timeLeft <= 0) {
                 timeLeft = refreshTime;
