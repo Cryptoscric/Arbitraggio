@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Direct DEX Swap</title>
+    <title>ARB SENTRY - Meteora Pools Edition</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
@@ -10,7 +10,10 @@
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 25px; align-items: center; }
         .controls label { font-size: 0.75rem; font-weight: 800; color: var(--glow); text-transform: uppercase; }
-        .controls input { background: #000; color: var(--glow); border: 1px solid #333; padding: 4px; border-radius: 4px; width: 60px; font-size: 0.9rem; text-align: center; }
+        
+        /* Input Grigio Scuro */
+        .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 60px; font-size: 0.9rem; text-align: center; outline: none; }
+        .controls input:focus { border-color: var(--glow); }
 
         .timer-container { flex-grow: 1; text-align: right; }
         #timer-text { font-size: 0.8rem; color: var(--glow); margin-bottom: 3px; display: block; }
@@ -48,8 +51,8 @@
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY - DIRECT SWAP LINKS</h2>
-    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Ready...</div>
+    <h2 style="color: var(--glow); margin:0; font-size: 1.2rem;">ARB SENTRY - METEORA POOLS</h2>
+    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Live...</div>
 </div>
 
 <div class="controls">
@@ -70,17 +73,12 @@
     let mints = [];
     let timeLeft = 15;
 
-    // Funzione per generare il link di swap diretto
     function getDirectSwapUrl(dex, mint) {
         switch(dex.toLowerCase()) {
-            case 'raydium':
-                return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
-            case 'orca':
-                return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
-            case 'meteora':
-                return `https://app.meteora.ag/swap/${mint}`;
-            default:
-                return "#";
+            case 'raydium': return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
+            case 'orca': return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
+            case 'meteora': return `https://www.meteora.ag/pools`; // Link aggiornato
+            default: return "#";
         }
     }
 
@@ -88,9 +86,7 @@
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            return text.split(/\r?\n/)
-                       .map(l => l.trim().split(/\s+/).pop())
-                       .filter(addr => addr && addr.length > 30);
+            return text.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(addr => addr && addr.length > 30);
         } catch (e) { return []; }
     }
 
