@@ -2,134 +2,129 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Solana Arb Sentry - Final Stable</title>
+    <title>Arb Sentry - Multi-DEX Comparison</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
         body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 0; padding: 20px; }
-        .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
-        .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 5px; border-radius: 4px; width: 70px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
-        .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; }
-        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 20px var(--glow); background: #001a00; transform: scale(1.02); }
-        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-        .pos { color: var(--glow); font-weight: bold; font-size: 1.4rem; }
-        .neg { color: #ff3e3e; font-size: 1.4rem; }
-        .btn { display: block; text-align: center; padding: 12px; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 6px; margin-top: 15px; font-weight: bold; }
-        #debug-log { background: #111; color: #ffa500; padding: 10px; font-size: 0.8rem; border: 1px solid #333; margin-bottom: 15px; border-radius: 5px; }
+        .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 25px; }
+        .token-section { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 20px; }
+        .token-title { font-size: 1.2rem; color: var(--glow); margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        
+        .dex-container { display: flex; flex-wrap: wrap; gap: 10px; }
+        .dex-card { background: #1a1a1a; border: 1px solid #444; padding: 15px; border-radius: 8px; flex: 1; min-width: 180px; text-align: center; transition: 0.3s; }
+        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 15px rgba(0, 255, 65, 0.2); }
+        .dex-name { font-size: 0.8rem; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+        
+        .price { font-size: 1.2rem; font-weight: bold; margin: 10px 0; }
+        .profit { font-size: 0.9rem; font-weight: bold; }
+        .pos { color: var(--glow); }
+        .neg { color: #ff3e3e; }
+        
+        .btn-swap { display: inline-block; margin-top: 10px; padding: 5px 10px; border: 1px solid var(--glow); color: var(--glow); text-decoration: none; font-size: 0.7rem; border-radius: 4px; }
+        .btn-swap:hover { background: var(--glow); color: #000; }
+        
+        #status-bar { background: #111; padding: 10px; border-radius: 5px; font-size: 0.8rem; color: #ffa500; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
-    <div id="status">In attesa di dati...</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA MULTI-DEX SENTRY</h1>
+    <div style="color: #666; font-size: 0.8rem;">Analisi comparativa: Orca, Meteora, Raydium, Drift, Manifest</div>
 </div>
 
-<div id="debug-log">Log: Inizializzazione...</div>
-
-<div class="controls">
-    <div>SOGLIA ALERT (%): <input type="number" id="alertThreshold" value="0.01" step="0.005"></div>
-    <div style="font-size: 0.8rem; color: #888;">Lettura dinamica da <b>mint.txt</b></div>
-</div>
-
-<div id="dashboard" class="grid"></div>
+<div id="status-bar">Caricamento token da mint.txt...</div>
+<div id="main-grid" class="grid"></div>
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
     const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    let tokenMetadata = {};
+    const DEXES = ["Orca", "Meteora", "Raydium", "Drift", "Manifest"];
     let activeMints = [];
-
-    const logger = (msg) => { document.getElementById('debug-log').innerText = "Log: " + msg; };
 
     async function loadTokens() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
-            if (!r.ok) throw new Error("Impossibile leggere mint.txt");
             const text = await r.text();
-            
-            // Estrazione pulita degli indirizzi 
+            // Pulisce gli indirizzi estratti dal file
             const mints = text.split(/\r?\n/)
-                             .map(l => l.trim())
-                             .filter(l => l.length > 0)
-                             .map(l => l.split(/\s+/).pop()) // Prende solo l'ultima parte (l'indirizzo) 
+                             .map(l => l.trim().split(/\s+/).pop())
                              .filter(addr => addr.length >= 32 && addr.length <= 48);
-
-            if (mints.length === 0) throw new Error("Nessun indirizzo valido in mint.txt");
             
-            logger(`Caricati ${mints.length} token. Avvio scanner...`);
+            document.getElementById('status-bar').innerText = `Monitoraggio avviato su ${mints.length} token.`;
             return mints;
         } catch (e) {
-            logger("ERRORE: " + e.message);
+            document.getElementById('status-bar').innerText = "Errore: mint.txt non trovato.";
             return [];
         }
     }
 
-    async function fetchMetadata(mints) {
+    async function checkDexPrice(mint, dex) {
         try {
-            // Tentativo di recupero nomi, ma non blocca lo scanner se fallisce
-            const r = await fetch(`https://tokens.jup.ag/tokens?tokens=${mints.join(',')}`);
-            if (r.ok) {
-                const data = await r.json();
-                data.forEach(t => { tokenMetadata[t.address] = { name: t.name, symbol: t.symbol }; });
-            }
-        } catch (e) { console.warn("Metadati non disponibili."); }
+            // Chiamata a Jupiter forzando il DEX specifico
+            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0&onlyDirectRoutes=true&dexes=${dex}`;
+            const r = await fetch(url);
+            const data = await r.json();
+            return data;
+        } catch (e) { return null; }
     }
 
-    async function scan() {
-        const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
+    async function updateDashboard() {
+        const grid = document.getElementById('main-grid');
         
         for (const mint of activeMints) {
-            try {
-                // Chiamata Quote API v6
-                const r = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0`);
-                const data = await r.json();
+            let section = document.getElementById('section-' + mint);
+            if (!section) {
+                section = document.createElement('div');
+                section.id = 'section-' + mint;
+                section.className = 'token-section';
+                section.innerHTML = `<div class="token-title">Token: ${mint.substring(0,12)}...</div><div class="dex-container" id="container-${mint}"></div>`;
+                grid.appendChild(section);
+            }
+
+            const container = document.getElementById('container-' + mint);
+            
+            // Esegue il controllo su ogni DEX per questo specifico token
+            for (const dex of DEXES) {
+                const data = await checkDexPrice(mint, dex);
+                let dexCard = document.getElementById(`card-${mint}-${dex}`);
                 
-                if (data && data.outAmount) {
-                    renderCard(mint, data, threshold);
+                if (!dexCard) {
+                    dexCard = document.createElement('div');
+                    dexCard.id = `card-${mint}-${dex}`;
+                    dexCard.className = 'dex-card';
+                    container.appendChild(dexCard);
                 }
-            } catch (e) { console.error("Errore quote:", mint); }
+
+                if (data && data.outAmount) {
+                    const out = data.outAmount / 1e9;
+                    const pct = ((out - 5) / 5) * 100;
+                    const isProfitable = pct > 0.01;
+                    
+                    dexCard.classList.toggle('active', isProfitable);
+                    if(isProfitable) document.getElementById('beep').play().catch(()=>{});
+
+                    dexCard.innerHTML = `
+                        <div class="dex-name">${dex}</div>
+                        <div class="price">${out.toFixed(5)} SOL</div>
+                        <div class="profit ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
+                        <a href="https://jup.ag/swap/SOL-${mint}-SOL?dex=${dex}" target="_blank" class="btn-swap">APRI ${dex}</a>
+                    `;
+                } else {
+                    dexCard.innerHTML = `<div class="dex-name">${dex}</div><div style="color:#444; margin-top:10px;">No Pool</div>`;
+                }
+            }
         }
-        document.getElementById('status').innerText = "Update: " + new Date().toLocaleTimeString();
-    }
-
-    function renderCard(mint, data, threshold) {
-        const out = data.outAmount / 1e9;
-        const pct = ((out - 5) / 5) * 100;
-        const meta = tokenMetadata[mint] || { name: mint.substring(0,8) + '...', symbol: '???' };
-        
-        let card = document.getElementById(mint);
-        if (!card) {
-            card = document.createElement('div');
-            card.id = mint;
-            card.className = 'card';
-            document.getElementById('dashboard').appendChild(card);
-        }
-
-        const isAlert = pct >= threshold;
-        card.classList.toggle('highlight', isAlert);
-        if(isAlert) document.getElementById('beep').play().catch(()=>{});
-
-        card.innerHTML = `
-            <div class="token-name">${meta.name} <span style="font-size:0.7rem; color:#666;">${meta.symbol}</span></div>
-            <div style="font-size:0.6rem; color:#444; margin-bottom:10px;">${mint}</div>
-            <div class="${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-            <div style="font-size:0.8rem; margin-top:10px; color:#aaa;">
-                Out: <b>${out.toFixed(5)} SOL</b><br>
-                Impact: ${data.priceImpactPct}%
-            </div>
-            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI ARB</a>
-        `;
+        document.getElementById('status-bar').innerText = "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
     }
 
     async function init() {
         activeMints = await loadTokens();
         if (activeMints.length > 0) {
-            await fetchMetadata(activeMints); // Prova a prendere i nomi
-            scan(); // Primo scan immediato
-            setInterval(scan, 10000); // Poi ogni 10 secondi
+            updateDashboard();
+            setInterval(updateDashboard, 15000); // Ogni 15 secondi per non saturare le API
         }
     }
 
