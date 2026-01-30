@@ -2,65 +2,42 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Arb Sentry - White Label Edition</title>
+    <title>Arb Sentry - Repair Mode</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
-        .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 30px; align-items: center; }
-        .controls label { font-size: 0.9rem; font-weight: bold; color: var(--glow); text-transform: uppercase; }
-        .controls input { background: #000; color: #fff; border: 2px solid #444; padding: 8px; border-radius: 6px; width: 90px; font-size: 1rem; font-weight: bold; text-align: center; }
-        
+        body { font-family: 'Segoe UI', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; }
+        .controls { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
         .timer-container { flex-grow: 1; text-align: right; }
-        #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
-        #countdown-bar { width: 100%; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
-        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; box-shadow: 0 0 10px var(--glow); }
-
-        .grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
-        .token-section { background: var(--card); border: 1px solid #333; border-radius: 15px; padding: 20px; }
-        .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
-        .token-header span:first-child { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
-        
-        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
-        
-        /* RIQUADRI DEX - TUTTI I TESTI IN BIANCO */
-        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 20px; border-radius: 10px; text-align: center; color: #ffffff !important; }
-        .dex-card.active { border-color: var(--glow); background: #002200; box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
-        .dex-card.na { opacity: 0.3; border-style: dashed; }
-        
-        .dex-name { font-size: 0.85rem; font-weight: 800; color: #ffffff !important; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .price { font-size: 1.5rem; font-weight: 800; color: #ffffff !important; margin: 10px 0; }
-        
-        /* Eccezione solo per i colori di profitto/perdita per leggibilità rapida */
-        .pct { font-size: 1.1rem; font-weight: 900; padding: 4px 10px; border-radius: 4px; display: inline-block; }
-        .pos { color: #00ff41; background: rgba(0, 255, 65, 0.15); }
-        .neg { color: #ff3333; background: rgba(255, 51, 51, 0.15); }
-        
-        #status-msg { font-size: 0.85rem; color: #888; font-weight: bold; }
+        #progress-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; margin-top: 5px; }
+        #progress { height: 100%; background: var(--glow); width: 0%; transition: width 1s linear; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 25px; }
+        .token-section { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 15px; }
+        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 15px; border-radius: 8px; text-align: center; color: white !important; }
+        .dex-card.active { border-color: var(--glow); background: #002200; }
+        .price { font-size: 1.3rem; font-weight: bold; display: block; margin: 5px 0; }
+        .pct { font-weight: bold; padding: 2px 5px; border-radius: 3px; }
+        .pos { color: #00ff41; } .neg { color: #ff3333; }
+        #debug-console { background: #000; color: #ffa500; padding: 10px; font-size: 0.8rem; border: 1px solid #444; margin-bottom: 20px; max-height: 100px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY</h1>
-    <div id="status-msg">In attesa del primo scan...</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY <span style="font-size:0.8rem;">(REPAIR MODE)</span></h1>
 </div>
+
+<div id="debug-console">Inizializzazione... Controlla se i Mint vengono letti correttamente.</div>
 
 <div class="controls">
     <div>
-        <label>TEST AMOUNT (SOL)</label><br>
-        <input type="number" id="testAmount" value="5" step="0.5">
-    </div>
-    <div>
-        <label>ALERT THRESHOLD (%)</label><br>
-        <input type="number" id="alertThreshold" value="0.01" step="0.005">
+        <label style="color:var(--glow); font-weight:bold;">TEST SOL:</label>
+        <input type="number" id="testAmount" value="5" style="width:60px; background:#000; color:#fff; border:1px solid #555;">
     </div>
     <div class="timer-container">
-        <span id="timer-text">PROSSIMO AGGIORNAMENTO: 15s</span>
-        <div id="countdown-bar"><div id="progress"></div></div>
+        <span id="timer-text" style="color:var(--glow)">Scan in corso...</span>
+        <div id="progress-bar"><div id="progress"></div></div>
     </div>
 </div>
 
@@ -70,7 +47,7 @@
 
 <script>
     const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    const TARGET_DEX = [
+    const DEXES = [
         { id: "Jupiter", label: "JUPITER BEST" },
         { id: "Orca", label: "ORCA" },
         { id: "Meteora", label: "METEORA" },
@@ -78,33 +55,61 @@
     ];
 
     let mints = [];
-    const refreshTime = 15; 
-    let timeLeft = refreshTime;
+    const interval = 15;
+    let secondsLeft = interval;
+
+    function log(msg) {
+        const console = document.getElementById('debug-console');
+        console.innerHTML += `> ${msg}<br>`;
+        console.scrollTop = console.scrollHeight;
+    }
 
     async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            return text.split(/\r?\n/)
-                       .map(l => l.trim().split(/\s+/).pop())
-                       .filter(addr => addr && addr.length > 30);
-        } catch (e) { return []; }
+            // Pulisce in modo aggressivo ogni riga del file
+            const cleanMints = text.split(/\r?\n/)
+                                   .map(line => line.trim())
+                                   .filter(line => line.length > 0)
+                                   .map(line => {
+                                       const parts = line.split(/\s+/);
+                                       return parts[parts.length - 1]; // Prende l'ultima parola (l'indirizzo)
+                                   })
+                                   .filter(addr => addr.length >= 32 && addr.length <= 48);
+            
+            log(`Trovati ${cleanMints.length} indirizzi validi.`);
+            return cleanMints;
+        } catch (e) {
+            log("ERRORE: Impossibile leggere mint.txt");
+            return [];
+        }
     }
 
-    async function getQuote(mint, dexId, amountSol) {
+    async function getPrice(mint, dexId, amount) {
         try {
-            const lamports = Math.floor(amountSol * 1000000000);
-            const dexFilter = (dexId === "Jupiter") ? "" : `&dexes=${dexId}&onlyDirectRoutes=true`;
-            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0${dexFilter}`;
-            const r = await fetch(url);
-            return await r.json();
-        } catch (e) { return null; }
+            const lamports = Math.floor(amount * 1e9);
+            // Costruzione URL semplificata
+            let url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`;
+            
+            if (dexId !== "Jupiter") {
+                url += `&dexes=${dexId}&onlyDirectRoutes=true`;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return data;
+        } catch (e) {
+            return null;
+        }
     }
 
-    async function scan() {
-        const testSize = parseFloat(document.getElementById('testAmount').value) || 5;
-        const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
+    async function runScan() {
+        const testVal = parseFloat(document.getElementById('testAmount').value) || 5;
         const grid = document.getElementById('main-grid');
+        
+        log("Inizio scansione prezzi...");
 
         for (const mint of mints) {
             let section = document.getElementById('sec-' + mint);
@@ -112,21 +117,16 @@
                 section = document.createElement('div');
                 section.id = 'sec-' + mint;
                 section.className = 'token-section';
-                section.innerHTML = `
-                    <div class="token-header">
-                        <span>TOKEN: ${mint.substring(0,12)}...</span>
-                        <span style="font-size:0.8rem; color:#666; font-family:monospace;">${mint}</span>
-                    </div>
-                    <div class="dex-grid" id="grid-${mint}"></div>`;
+                section.innerHTML = `<div style="color:var(--glow); border-bottom:1px solid #333; padding-bottom:5px;">TOKEN: ${mint}</div><div class="dex-grid" id="grid-${mint}"></div>`;
                 grid.appendChild(section);
             }
 
             const dexGrid = document.getElementById('grid-' + mint);
 
-            for (const dex of TARGET_DEX) {
-                const data = await getQuote(mint, dex.id, testSize);
+            for (const dex of DEXES) {
+                const data = await getPrice(mint, dex.id, testVal);
                 let card = document.getElementById(`card-${mint}-${dex.id}`);
-
+                
                 if (!card) {
                     card = document.createElement('div');
                     card.id = `card-${mint}-${dex.id}`;
@@ -136,46 +136,37 @@
 
                 if (data && data.outAmount) {
                     const out = data.outAmount / 1e9;
-                    const pct = ((out - testSize) / testSize) * 100;
-                    const alert = pct >= threshold;
-                    
-                    card.classList.remove('na');
-                    card.classList.toggle('active', alert);
-                    if(alert) document.getElementById('beep').play().catch(()=>{});
-
+                    const pct = ((out - testVal) / testVal) * 100;
                     card.innerHTML = `
-                        <div class="dex-name">${dex.label}</div>
-                        <div class="price">${out.toFixed(5)} SOL</div>
-                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
+                        <div style="font-size:0.7rem; color:#aaa;">${dex.label}</div>
+                        <span class="price">${out.toFixed(5)} SOL</span>
+                        <span class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</span>
                     `;
+                    if(pct > 0.01) document.getElementById('beep').play().catch(()=>{});
                 } else {
-                    card.classList.add('na');
-                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#666; font-weight:bold; margin-top:15px;">NO POOL</div>`;
+                    card.innerHTML = `<div style="font-size:0.7rem; color:#aaa;">${dex.label}</div><span style="color:#555; display:block; margin-top:10px;">NON DISPONIBILE</span>`;
                 }
             }
         }
-        document.getElementById('status-msg').innerText = "LIVE UPDATE: " + new Date().toLocaleTimeString();
+        log("Scansione completata.");
     }
 
-    function startTimer() {
-        setInterval(() => {
-            timeLeft--;
-            const progWidth = (timeLeft / refreshTime) * 100;
-            document.getElementById('progress').style.width = progWidth + "%";
-            document.getElementById('timer-text').innerText = `PROSSIMO AGGIORNAMENTO: ${timeLeft}s`;
-
-            if (timeLeft <= 0) {
-                timeLeft = refreshTime;
-                scan();
-            }
-        }, 1000);
+    function timer() {
+        secondsLeft--;
+        document.getElementById('progress').style.width = ((interval - secondsLeft) / interval * 100) + "%";
+        document.getElementById('timer-text').innerText = `Prossimo scan: ${secondsLeft}s`;
+        
+        if (secondsLeft <= 0) {
+            secondsLeft = interval;
+            runScan();
+        }
     }
 
     async function init() {
         mints = await loadMints();
         if (mints.length > 0) {
-            scan();
-            startTimer();
+            runScan();
+            setInterval(timer, 1000);
         }
     }
 
