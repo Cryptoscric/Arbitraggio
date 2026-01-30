@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Green Gap Mode</title>
+    <title>ARB SENTRY - Gap Fixed</title>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
     <style>
@@ -38,8 +38,8 @@
         
         .dex-name { font-size: 0.95rem; font-weight: 900; text-transform: uppercase; color: #888; margin-bottom: 4px; }
         .price { font-size: 1rem; font-weight: 800; color: #fff; display: block; }
-        .price.highest { color: var(--glow) !important; }
-        .price.lowest { color: var(--red) !important; }
+        .price.highest { color: var(--glow) !important; } /* Prezzo alto VERDE */
+        .price.lowest { color: var(--red) !important; }    /* Prezzo basso ROSSO */
         
         .trade-btns { display: flex; gap: 4px; justify-content: center; margin-top: 6px; }
         .btn-t { border: none; padding: 2px 6px; font-size: 0.65rem; font-weight: 900; cursor: pointer; border-radius: 2px; min-width: 25px; }
@@ -61,7 +61,7 @@
 <script>window.Buffer = window.Buffer || buffer.Buffer;</script>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0;">ARB SENTRY - FULL TERMINAL</h2>
+    <h2 style="color: var(--glow); margin:0;">ARB SENTRY - GAP RE-CALCULATED</h2>
     <button id="wallet-btn" onclick="connectWallet()">CONNETTI WALLET</button>
     <div id="status-msg">READY...</div>
 </div>
@@ -86,8 +86,9 @@
         if (window.solana) {
             const resp = await window.solana.connect();
             userWallet = resp.publicKey.toString();
-            document.getElementById('wallet-btn').innerText = "ADDR: " + userWallet.substring(0,8) + "...";
-            document.getElementById('wallet-btn').classList.add('connected');
+            const btn = document.getElementById('wallet-btn');
+            btn.innerText = "ADDR: " + userWallet.substring(0,8) + "...";
+            btn.classList.add('connected');
         }
     }
 
@@ -102,10 +103,9 @@
             const solQty = document.getElementById('trade-sol').value * 1e9;
             const input = mode === 'BUY' ? SOL_MINT : targetMint;
             const output = mode === 'BUY' ? targetMint : SOL_MINT;
-            // Esempio Sell: per vendere "tutto" servirebbe fetch balance, qui usiamo un valore base o trade amount
             const amount = mode === 'BUY' ? solQty : "1000000000"; 
 
-            const qUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${amount}&dexes=${dexForce}&slippageBps=100&onlyDirectRoutes=false`;
+            const qUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${amount}&dexes=${dexForce}&slippageBps=100`;
             const quote = await (await fetch(qUrl)).json();
 
             const sReq = await fetch('https://quote-api.jup.ag/v6/swap', {
@@ -120,13 +120,12 @@
                 })
             });
             const { swapTransaction } = await sReq.json();
-
             const transaction = solanaWeb3.VersionedTransaction.deserialize(Buffer.from(swapTransaction, 'base64'));
             const { signature } = await window.solana.signAndSendTransaction(transaction);
             status.innerText = "SUCCESS! " + signature.slice(0,6);
             status.style.color = "var(--glow)";
         } catch (e) {
-            status.innerText = "TX ERROR: " + e.message;
+            status.innerText = "TX ERROR";
             status.style.color = "var(--red)";
         } finally { btn.classList.remove('loading'); }
     }
@@ -149,15 +148,19 @@
             try {
                 const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
                 const data = await response.json();
-                const pairs = (data.pairs || []).filter(p => TARGET_DEX_IDS.includes(p.dexId.toLowerCase()));
-                if (pairs.length === 0) continue;
+                
+                // FILTRO: Solo i DEX della riga
+                let rowPairs = (data.pairs || []).filter(p => TARGET_DEX_IDS.includes(p.dexId.toLowerCase()));
+                if (rowPairs.length === 0) continue;
 
-                const prices = pairs.map(p => parseFloat(p.priceUsd));
-                const maxP = Math.max(...prices), minP = Math.min(...prices);
-                const gap = ((maxP - minP) / minP) * 100;
+                // CALCOLO GAP SOLO SUI DEX FILTRATI
+                const prices = rowPairs.map(p => parseFloat(p.priceUsd));
+                const maxP = Math.max(...prices);
+                const minP = Math.min(...prices);
+                const gap = rowPairs.length > 1 ? ((maxP - minP) / minP) * 100 : 0;
                 const profit = gap >= threshold ? ((simUsdc * 0.997 / minP) * maxP * 0.997) - simUsdc : 0;
 
-                results.push({ mint, name: pairs[0].baseToken.name, symbol: pairs[0].baseToken.symbol, gap, profit, prices: pairs });
+                results.push({ mint, name: rowPairs[0].baseToken.name, symbol: rowPairs[0].baseToken.symbol, gap, profit, pairs: rowPairs, maxP, minP });
             } catch (e) {}
         }
 
@@ -166,31 +169,29 @@
             if(!section.id) { section.id = 'sec-' + token.mint; section.className = 'token-section'; grid.appendChild(section); }
             section.style.order = index;
 
-            const maxPrice = Math.max(...token.prices.map(p => parseFloat(p.priceUsd)));
-            const minPrice = Math.min(...token.prices.map(p => parseFloat(p.priceUsd)));
             const isAlert = token.gap >= threshold;
 
             let dexHTML = '';
-            TARGET_DEX_IDS.forEach(dex => {
-                const p = token.prices.find(pair => pair.dexId.toLowerCase() === dex);
+            TARGET_DEX_IDS.forEach(dexId => {
+                const p = token.pairs.find(pair => pair.dexId.toLowerCase() === dexId);
                 if (p) {
                     const pr = parseFloat(p.priceUsd);
-                    const pCls = pr === maxPrice ? "highest" : (pr === minPrice ? "lowest" : "");
+                    const pCls = (pr === token.maxP && token.pairs.length > 1) ? "highest" : (pr === token.minP && token.pairs.length > 1) ? "lowest" : "";
                     dexHTML += `
                         <div class="dex-card">
-                            <div class="dex-name">${dex.toUpperCase()}</div>
+                            <div class="dex-name">${dexId.toUpperCase()}</div>
                             <span class="price ${pCls}">$${pr < 0.01 ? pr.toFixed(7) : pr.toFixed(4)}</span>
                             <div class="trade-btns">
-                                <button class="btn-t btn-b" onclick="executeSwap(this,'BUY','${token.mint}','${dex}')">B</button>
-                                <button class="btn-t btn-s" onclick="executeSwap(this,'SELL','${token.mint}','${dex}')">S</button>
+                                <button class="btn-t btn-b" onclick="executeSwap(this,'BUY','${token.mint}','${dexId}')">B</button>
+                                <button class="btn-t btn-s" onclick="executeSwap(this,'SELL','${token.mint}','${dexId}')">S</button>
                             </div>
                             <span class="liq-info">LP: $${Math.round(p.liquidity?.usd || 0).toLocaleString()}</span>
                         </div>`;
-                } else { dexHTML += `<div class="dex-card"><div class="dex-name">${dex.toUpperCase()}</div><span>N/A</span></div>`; }
+                } else { dexHTML += `<div class="dex-card"><div class="dex-name">${dexId.toUpperCase()}</div><span>N/A</span></div>`; }
             });
 
             section.innerHTML = `
-                <div class="token-header"><div class="token-info"><span class="name">${token.name} (${token.symbol})</span><span class="addr" onclick="navigator.clipboard.writeText('${token.mint}')">${token.mint.slice(0,10)}... [COPIA]</span></div></div>
+                <div class="token-header"><div class="token-info"><span class="name">${token.name} (${token.symbol})</span><span class="addr" onclick="navigator.clipboard.writeText('${token.mint}')">${token.mint.slice(0,10)}...</span></div></div>
                 <div class="dex-grid">${dexHTML}
                     <div class="dex-card arb-card ${isAlert ? 'alert-border-green' : ''}"><div class="dex-name">GAP %</div><span class="gap-value ${isAlert ? 'blink-green' : ''}">${token.gap.toFixed(2)}%</span></div>
                     <div class="dex-card profit-card ${isAlert && token.profit > 0 ? 'alert-border-magenta' : ''}"><div class="dex-name">PROFITTO</div><span class="profit-value ${isAlert && token.profit > 0 ? 'blink-magenta' : ''}">$${token.profit.toFixed(2)}</span></div>
