@@ -2,79 +2,58 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Green Gap Mode</title>
+    <title>ARB SENTRY - Meteora Fix</title>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .controls { background: #111; padding: 10px 20px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #222; display: flex; gap: 20px; align-items: center; }
-        
         .control-group { display: flex; align-items: center; gap: 8px; }
         .controls label { font-size: 0.7rem; font-weight: 800; color: var(--glow); text-transform: uppercase; }
         .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 80px; font-size: 0.9rem; text-align: center; outline: none; }
         
-        /* WALLET CONNESSO INGRANDITO */
         #wallet-btn { font-size: 0.7rem; color: var(--glow); border: 1px solid var(--glow); padding: 5px 10px; cursor: pointer; border-radius: 4px; background: transparent; }
         #wallet-btn.connected { font-size: 1.1rem; padding: 8px 20px; background: #000; border: 2px solid var(--magenta); color: #fff; font-weight: bold; box-shadow: 0 0 10px var(--magenta); }
 
-        .timer-container { flex-grow: 1; text-align: right; }
-        #timer-text { font-size: 0.8rem; color: var(--glow); margin-bottom: 3px; display: block; }
-        #countdown-bar { width: 100px; height: 4px; background: #222; border-radius: 2px; float: right; overflow: hidden; }
-        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
-
         #main-grid { display: flex; flex-direction: column; gap: 15px; }
         .token-section { background: var(--card); border: 1px solid #222; border-radius: 10px; padding: 12px; }
-        
-        .token-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
-        .token-info .name { color: var(--glow); font-size: 1rem; font-weight: 900; }
-        .token-info .addr { color: var(--magenta); font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px dashed transparent; padding: 2px; }
-
         .dex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
         .dex-card { background: #181818; border: 1px solid #333; padding: 10px; border-radius: 6px; text-align: center; }
-        .arb-card { border: 1px solid #444; background: #000; }
-        .profit-card { border: 1px solid #333; background: #080808; }
-        
         .dex-name { font-size: 0.9rem; font-weight: 900; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+        
         .price { font-size: 1rem; font-weight: 800; color: #fff; display: block; }
         .price.highest { color: var(--glow) !important; }
         .price.lowest { color: var(--red) !important; }
         
-        /* BOTTONI DIMEZZATI */
         .trade-btns { display: flex; gap: 4px; justify-content: center; margin-top: 6px; }
         .btn-t { border: none; padding: 2px 6px; font-size: 0.65rem; font-weight: 900; cursor: pointer; border-radius: 2px; min-width: 25px; }
         .btn-b { background: var(--glow); color: #000; }
         .btn-s { background: var(--red); color: #fff; }
         .loading { animation: pulse 0.4s infinite; pointer-events: none; }
-
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } }
+        
         .gap-value { font-size: 1.2rem; font-weight: 900; color: #444; }
         .profit-value { font-size: 1.2rem; font-weight: 900; color: #444; }
         .blink-green { color: var(--glow) !important; animation: blink 0.6s infinite; }
-        .blink-magenta { color: var(--magenta) !important; animation: blink 0.6s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
-        .liq-info { font-size: 0.7rem; font-weight: 700; color: #ffffff; margin-top: 4px; display: block; }
+        #status-msg { font-size: 0.8rem; color: #555; font-weight: bold; }
     </style>
 </head>
 <body>
 <script>window.Buffer = window.Buffer || buffer.Buffer;</script>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.1rem;">ARB SENTRY - GREEN GAP</h2>
+    <h2 style="color: var(--glow); margin:0;">ARB SENTRY - PRO TERMINAL</h2>
     <button id="wallet-btn" onclick="connectWallet()">CONNETTI WALLET</button>
-    <div id="status-msg" style="font-size: 0.8rem; color: #555; font-weight: bold;">Ready...</div>
+    <div id="status-msg">READY...</div>
 </div>
 
 <div class="controls">
     <div class="control-group"><label>GAP %</label><input type="number" id="threshold" value="1.0" step="0.1"></div>
-    <div class="control-group"><label>SIM USDC</label><input type="number" id="usdc-amount" value="100"></div>
     <div class="control-group"><label>TRADE SOL</label><input type="number" id="trade-sol" value="0.1" step="0.05"></div>
-    <div class="timer-container">
-        <span id="timer-text">RE-RANK: 15s</span>
-        <div id="countdown-bar"><div id="progress"></div></div>
-    </div>
+    <div id="timer-text" style="color: var(--glow); font-size: 0.8rem;">RE-RANK: 15s</div>
 </div>
 
 <div id="main-grid"></div>
@@ -83,16 +62,15 @@
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     const SOL_MINT = "So11111111111111111111111111111111111111112";
     let mints = [];
-    let timeLeft = 15;
     let userWallet = null;
+    let timeLeft = 15;
 
     async function connectWallet() {
         if (window.solana) {
             const resp = await window.solana.connect();
             userWallet = resp.publicKey.toString();
-            const btn = document.getElementById('wallet-btn');
-            btn.innerText = "CONNECTED: " + userWallet.substring(0,8) + "...";
-            btn.classList.add('connected');
+            document.getElementById('wallet-btn').innerText = "ADDR: " + userWallet.substring(0,8) + "...";
+            document.getElementById('wallet-btn').classList.add('connected');
         }
     }
 
@@ -100,117 +78,107 @@
         if (!userWallet) return alert("Connetti Wallet!");
         btn.classList.add('loading');
         const status = document.getElementById('status-msg');
-        status.innerText = `SENDING ${mode} @ ${dexForce.toUpperCase()}...`;
         status.style.color = "yellow";
+        status.innerText = `QUOTE ${dexForce.toUpperCase()}...`;
 
         try {
             const solQty = document.getElementById('trade-sol').value * 1e9;
             const input = mode === 'BUY' ? SOL_MINT : targetMint;
             const output = mode === 'BUY' ? targetMint : SOL_MINT;
-            const amount = mode === 'BUY' ? solQty : "1000000000"; 
-
-            const qReq = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${amount}&dexes=${dexForce}&slippageBps=100`);
+            
+            // Per Meteora/Jupiter serve specificare bene i parametri
+            const quoteUrl = `https://quote-api.jup.ag/v6/quote?inputMint=${input}&outputMint=${output}&amount=${solQty}&dexes=${dexForce}&slippageBps=100&onlyDirectRoutes=false`;
+            const qReq = await fetch(quoteUrl);
             const quote = await qReq.json();
 
+            if(!quote.outAmount) throw new Error("No Route");
+
+            status.innerText = "SIGNING...";
             const sReq = await fetch('https://quote-api.jup.ag/v6/swap', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quoteResponse: quote, userPublicKey: userWallet })
+                body: JSON.stringify({ 
+                    quoteResponse: quote, 
+                    userPublicKey: userWallet,
+                    wrapAndUnwrapSol: true,
+                    dynamicComputeUnitLimit: true, // Fondamentale per Meteora/Orca
+                    prioritizationFeeLamports: 50000 // Priorità per evitare fallimenti
+                })
             });
             const { swapTransaction } = await sReq.json();
 
+            // Supporto per Versioned Transactions (v0)
             const transaction = solanaWeb3.VersionedTransaction.deserialize(Buffer.from(swapTransaction, 'base64'));
             const { signature } = await window.solana.signAndSendTransaction(transaction);
-            status.innerText = "SUCCESS! " + signature.slice(0,8);
+            
+            status.innerText = "SUCCESS: " + signature.slice(0,6);
             status.style.color = "var(--glow)";
         } catch (e) {
-            status.innerText = "TX ERROR";
+            console.error(e);
+            status.innerText = "TX ERROR: " + e.message;
             status.style.color = "var(--red)";
         } finally { btn.classList.remove('loading'); }
     }
 
-    async function loadMints() {
-        try {
-            const r = await fetch('mint.txt?v=' + Date.now());
-            const t = await r.text();
-            return t.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(a => a && a.length > 30);
-        } catch (e) { return []; }
-    }
-
     async function scan() {
-        const threshold = parseFloat(document.getElementById('threshold').value);
-        const simUsdc = parseFloat(document.getElementById('usdc-amount').value);
         const grid = document.getElementById('main-grid');
-        let results = [];
-
+        const threshold = parseFloat(document.getElementById('threshold').value);
+        
         for (const mint of mints) {
             try {
-                const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
-                const data = await response.json();
-                const pairs = data.pairs || [];
-                let activePrices = [];
-                
+                const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+                const data = await r.json();
+                const pairs = (data.pairs || []).filter(p => TARGET_DEX_IDS.includes(p.dexId.toLowerCase()));
+                if(pairs.length === 0) continue;
+
+                const prices = pairs.map(p => parseFloat(p.priceUsd));
+                const maxP = Math.max(...prices), minP = Math.min(...prices);
+                const gap = ((maxP - minP) / minP) * 100;
+
+                let section = document.getElementById('sec-' + mint) || document.createElement('div');
+                if(!section.id) { section.id = 'sec-' + mint; section.className = 'token-section'; grid.appendChild(section); }
+                section.style.order = Math.round(1000 - gap * 10);
+
+                let dexHTML = '';
                 TARGET_DEX_IDS.forEach(dex => {
                     const p = pairs.find(pair => pair.dexId.toLowerCase() === dex);
-                    if (p && p.priceUsd) activePrices.push({ dex, price: parseFloat(p.priceUsd), data: p });
+                    if (p) {
+                        const pr = parseFloat(p.priceUsd);
+                        const pCls = pr === maxP ? "highest" : (pr === minP ? "lowest" : "");
+                        dexHTML += `
+                            <div class="dex-card">
+                                <div class="dex-name">${dex}</div>
+                                <span class="price ${pCls}">$${pr.toFixed(6)}</span>
+                                <div class="trade-btns">
+                                    <button class="btn-t btn-b" onclick="executeSwap(this,'BUY','${mint}','${dex}')">B</button>
+                                    <button class="btn-t btn-s" onclick="executeSwap(this,'SELL','${mint}','${dex}')">S</button>
+                                </div>
+                                <div style="font-size:0.6rem; color:#555; margin-top:5px;">LP: $${Math.round(p.liquidity?.usd || 0)}</div>
+                            </div>`;
+                    } else { dexHTML += `<div class="dex-card"><div class="dex-name">${dex}</div><span>N/A</span></div>`; }
                 });
 
-                if (activePrices.length === 0) continue;
-
-                const prices = activePrices.map(o => o.price);
-                const maxP = Math.max(...prices), minP = Math.min(...prices);
-                const gap = activePrices.length > 1 ? ((maxP - minP) / minP) * 100 : 0;
-                const profit = (gap >= threshold) ? ((simUsdc * 0.997 / minP) * maxP * 0.997) - simUsdc : 0;
-
-                results.push({ mint, name: pairs[0]?.baseToken.name || "Token", symbol: pairs[0]?.baseToken.symbol || "???", gap, profit, prices: activePrices });
+                section.innerHTML = `
+                    <div class="token-header"><div class="token-info"><span class="name">${pairs[0].baseToken.symbol}</span> <small>${mint.slice(0,8)}</small></div></div>
+                    <div class="dex-grid">${dexHTML}
+                        <div class="dex-card arb-card"><div class="dex-name">GAP %</div><span class="gap-value ${gap>=threshold?'blink-green':''}">${gap.toFixed(2)}%</span></div>
+                    </div>`;
             } catch (e) {}
         }
-
-        results.sort((a, b) => b.gap - a.gap).forEach((token, index) => {
-            let section = document.getElementById('sec-' + token.mint) || document.createElement('div');
-            if(!section.id) { section.id = 'sec-' + token.mint; section.className = 'token-section'; grid.appendChild(section); }
-            section.style.order = index;
-
-            const maxPrice = Math.max(...token.prices.map(o => o.price));
-            const minPrice = Math.min(...token.prices.map(o => o.price));
-            const isAlert = token.gap >= threshold;
-
-            let dexHTML = '';
-            TARGET_DEX_IDS.forEach(dex => {
-                const p = token.prices.find(ap => ap.dex === dex);
-                if (p) {
-                    const pCls = (p.price === maxPrice && token.prices.length > 1) ? "highest" : (p.price === minPrice && token.prices.length > 1) ? "lowest" : "";
-                    dexHTML += `
-                        <div class="dex-card">
-                            <div class="dex-name">${dex.toUpperCase()}</div>
-                            <span class="price ${pCls}">$${p.price < 0.01 ? p.price.toFixed(7) : p.price.toFixed(4)}</span>
-                            <div class="trade-btns">
-                                <button class="btn-t btn-b" onclick="executeSwap(this,'BUY','${token.mint}','${dex}')">B</button>
-                                <button class="btn-t btn-s" onclick="executeSwap(this,'SELL','${token.mint}','${dex}')">S</button>
-                            </div>
-                            <span class="liq-info">LP: $${Math.round(p.data.liquidity?.usd || 0).toLocaleString()}</span>
-                        </div>`;
-                } else { dexHTML += `<div class="dex-card"><div class="dex-name">${dex.toUpperCase()}</div><span>N/A</span></div>`; }
-            });
-
-            section.innerHTML = `
-                <div class="token-header"><div class="token-info"><span class="name">${token.name} (${token.symbol})</span><span class="addr" onclick="navigator.clipboard.writeText('${token.mint}')">${token.mint.slice(0,8)}... [COPIA]</span></div></div>
-                <div class="dex-grid">${dexHTML}
-                    <div class="dex-card arb-card ${isAlert ? 'alert-border-green' : ''}"><div class="dex-name">GAP %</div><span class="gap-value ${isAlert ? 'blink-green' : ''}">${token.gap.toFixed(2)}%</span></div>
-                    <div class="dex-card profit-card ${isAlert && token.profit > 0 ? 'alert-border-magenta' : ''}"><div class="dex-name">PROFITTO</div><span class="profit-value ${isAlert && token.profit > 0 ? 'blink-magenta' : ''}">$${token.profit.toFixed(2)}</span></div>
-                </div>`;
-        });
     }
 
-    function timer() {
-        setInterval(() => {
-            timeLeft--;
-            document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
-            if (timeLeft <= 0) { timeLeft = 15; scan(); }
-        }, 1000);
-    }
+    setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer-text').innerText = `RE-RANK: ${timeLeft}s`;
+        if (timeLeft <= 0) { timeLeft = 15; scan(); }
+    }, 1000);
 
-    (async () => { mints = await loadMints(); scan(); timer(); })();
+    (async () => {
+        const r = await fetch('mint.txt');
+        const t = await r.text();
+        mints = t.split('\n').map(l => l.trim()).filter(l => l.length > 30);
+        scan();
+    })();
 </script>
 </body>
 </html>
