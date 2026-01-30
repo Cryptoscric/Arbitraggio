@@ -2,47 +2,68 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Multi-DEX Arbitrage Sentry</title>
+    <title>Solana Multi-DEX Arb Sentry</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #111; --text: #eee; }
         body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        
+        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .controls label { font-size: 0.8rem; color: var(--glow); margin-right: 5px; }
+        .controls input { background: #000; color: var(--glow); border: 1px solid #444; padding: 6px; border-radius: 4px; width: 80px; font-family: monospace; }
+        
+        .timer-container { flex-grow: 1; text-align: right; min-width: 150px; }
+        #countdown-bar { width: 100%; height: 4px; background: #222; margin-top: 8px; border-radius: 2px; overflow: hidden; }
+        #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
+
         .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
         .token-section { background: var(--card); border: 1px solid #222; border-radius: 12px; padding: 15px; }
         .token-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 5px; }
-        .mint-addr { font-size: 0.65rem; color: #555; }
         
-        .dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-        .dex-card { background: #181818; border: 1px solid #333; padding: 12px; border-radius: 8px; text-align: center; transition: 0.2s; }
-        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 10px rgba(0, 255, 65, 0.2); background: #001a00; }
-        .dex-name { font-size: 0.75rem; font-weight: bold; color: #888; text-transform: uppercase; }
-        .price { font-size: 1.1rem; margin: 8px 0; color: #fff; }
-        .pct { font-size: 0.8rem; font-weight: bold; }
+        .dex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .dex-card { background: #181818; border: 1px solid #333; padding: 12px; border-radius: 8px; text-align: center; }
+        .dex-card.active { border-color: var(--glow); box-shadow: 0 0 15px rgba(0, 255, 65, 0.3); background: #001a00; }
+        
+        .dex-name { font-size: 0.7rem; font-weight: bold; color: #777; margin-bottom: 8px; }
+        .price { font-size: 1.1rem; font-weight: bold; color: #fff; }
         .pos { color: var(--glow); }
-        .neg { color: #ff4444; }
+        .neg { color: #ff4444; font-weight: bold; }
         
-        #log-bar { background: #1a1a00; color: #ffcc00; padding: 8px 15px; border-radius: 5px; font-size: 0.75rem; margin-bottom: 20px; border: 1px solid #330; }
+        #log-msg { color: #ffa500; font-size: 0.75rem; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="color: var(--glow); margin:0;">SOLANA ARB MULTI-DEX</h1>
-    <div id="status" style="font-size:0.8rem; color:#666;">Inizializzazione...</div>
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
+    <div id="status" style="font-size:0.8rem; color:#666;">Ready</div>
 </div>
 
-<div id="log-bar">Caricamento configurazione...</div>
+<div class="controls">
+    <div>
+        <label>TEST SIZE (SOL):</label>
+        <input type="number" id="testAmount" value="5" step="0.5">
+    </div>
+    <div>
+        <label>ALERT (%):</label>
+        <input type="number" id="alertThreshold" value="0.01" step="0.005">
+    </div>
+    <div class="timer-container">
+        <span id="timer-text" style="font-size: 0.8rem; color:#888;">Prossimo scan in: 15s</span>
+        <div id="countdown-bar"><div id="progress"></div></div>
+    </div>
+</div>
 
-<div class="grid" id="main-grid"></div>
+<div id="log-msg">Caricamento indirizzi da mint.txt...</div>
+<div id="main-grid" class="grid"></div>
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    const SOL = "So11111111111111111111111111111111111111112";
-    // Nomi tecnici corretti per il routing di Jupiter
-    const DEX_MAP = [
-        { id: "Orca", label: "ORCA WHIRLPOOL" },
-        { id: "Meteora", label: "METEORA DLMM" },
+    const SOL_ADDR = "So11111111111111111111111111111111111111112";
+    const DEX_LIST = [
+        { id: "Orca", label: "ORCA" },
+        { id: "Meteora", label: "METEORA" },
         { id: "Raydium", label: "RAYDIUM" },
         { id: "Drift", label: "DRIFT" },
         { id: "Manifest", label: "MANIFEST" },
@@ -50,30 +71,35 @@
     ];
 
     let mints = [];
+    let refreshTime = 15; 
+    let timeLeft = refreshTime;
 
-    async function getTokens() {
+    async function loadMints() {
         try {
             const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            // Pulisce l'input dal file
+            // Pulisce gli indirizzi estratti dal file
             return text.split(/\r?\n/)
                        .map(l => l.trim().split(/\s+/).pop())
                        .filter(addr => addr && addr.length > 30);
         } catch (e) { return []; }
     }
 
-    async function fetchPrice(mint, dexId) {
+    async function getQuote(mint, dexId, amountSol) {
         try {
-            // Amount: 5 SOL (5000000000 lamports)
-            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=5000000000&intermediateMint=${mint}&slippageBps=0&dexes=${dexId}&onlyDirectRoutes=true`;
+            const lamports = Math.floor(amountSol * 1000000000);
+            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0&dexes=${dexId}&onlyDirectRoutes=true`;
             const r = await fetch(url);
             return await r.json();
         } catch (e) { return null; }
     }
 
-    async function refresh() {
+    async function scan() {
+        const testSize = parseFloat(document.getElementById('testAmount').value) || 5;
+        const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
         const grid = document.getElementById('main-grid');
-        document.getElementById('log-bar').innerText = `Scansione di ${mints.length} token su ${DEX_MAP.length} mercati...`;
+
+        document.getElementById('log-msg').innerText = `Analisi di ${mints.length} token su ${testSize} SOL...`;
 
         for (const mint of mints) {
             let section = document.getElementById('sec-' + mint);
@@ -81,19 +107,14 @@
                 section = document.createElement('div');
                 section.id = 'sec-' + mint;
                 section.className = 'token-section';
-                section.innerHTML = `
-                    <div class="token-header">
-                        <span style="color:var(--glow); font-weight:bold;">TOKEN: ${mint.substring(0,8)}...</span>
-                        <span class="mint-addr">${mint}</span>
-                    </div>
-                    <div class="dex-grid" id="grid-${mint}"></div>`;
+                section.innerHTML = `<div class="token-header"><span style="color:var(--glow)">${mint.substring(0,10)}...</span><span style="font-size:0.6rem; color:#444;">${mint}</span></div><div class="dex-grid" id="grid-${mint}"></div>`;
                 grid.appendChild(section);
             }
 
             const dexGrid = document.getElementById('grid-' + mint);
 
-            for (const dex of DEX_MAP) {
-                const data = await fetchPrice(mint, dex.id);
+            for (const dex of DEX_LIST) {
+                const data = await getQuote(mint, dex.id, testSize);
                 let card = document.getElementById(`card-${mint}-${dex.id}`);
 
                 if (!card) {
@@ -105,32 +126,46 @@
 
                 if (data && data.outAmount) {
                     const out = data.outAmount / 1e9;
-                    const pct = ((out - 5) / 5) * 100;
-                    const active = pct > 0.01;
+                    const pct = ((out - testSize) / testSize) * 100;
+                    const alert = pct >= threshold;
                     
-                    card.classList.toggle('active', active);
-                    if(active) document.getElementById('beep').play().catch(()=>{});
+                    card.classList.toggle('active', alert);
+                    if(alert) document.getElementById('beep').play().catch(()=>{});
 
                     card.innerHTML = `
                         <div class="dex-name">${dex.label}</div>
-                        <div class="price">${out.toFixed(5)} <span style="font-size:0.6rem">SOL</span></div>
-                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%</div>
+                        <div class="price">${out.toFixed(5)} SOL</div>
+                        <div class="pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
                     `;
                 } else {
-                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#333; font-size:0.7rem; margin-top:10px;">NO LIQUIDITY</div>`;
+                    card.innerHTML = `<div class="dex-name">${dex.label}</div><div style="color:#333; font-size:0.7rem; margin-top:5px;">No Liquidity</div>`;
                 }
             }
         }
-        document.getElementById('status').innerText = "Live: " + new Date().toLocaleTimeString();
+        document.getElementById('status').innerText = "Last Update: " + new Date().toLocaleTimeString();
+    }
+
+    function startTimer() {
+        setInterval(() => {
+            timeLeft--;
+            const progWidth = (timeLeft / refreshTime) * 100;
+            document.getElementById('progress').style.width = progWidth + "%";
+            document.getElementById('timer-text').innerText = `Prossimo scan in: ${timeLeft}s`;
+
+            if (timeLeft <= 0) {
+                timeLeft = refreshTime;
+                scan();
+            }
+        }, 1000);
     }
 
     async function init() {
-        mints = await getTokens();
+        mints = await loadMints();
         if (mints.length > 0) {
-            refresh();
-            setInterval(refresh, 20000); // 20 secondi per evitare rate-limit
+            scan();
+            startTimer();
         } else {
-            document.getElementById('log-bar').innerText = "ERRORE: Nessun token trovato in mint.txt";
+            document.getElementById('log-msg').innerText = "Errore: Nessun indirizzo trovato in mint.txt";
         }
     }
 
