@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>ARB SENTRY - Magenta Simulator</title>
+    <title>ARB SENTRY - USDC Simulator</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #121212; --text: #e0e0e0; --red: #ff3333; --magenta: #ff00ff; }
         body { font-family: 'Segoe UI', Consolas, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
@@ -12,7 +12,7 @@
         
         .control-group { display: flex; align-items: center; gap: 8px; }
         .controls label { font-size: 0.7rem; font-weight: 800; color: var(--glow); text-transform: uppercase; }
-        .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 70px; font-size: 0.9rem; text-align: center; outline: none; }
+        .controls input { background: #2a2a2a; color: var(--glow); border: 1px solid #444; padding: 4px; border-radius: 4px; width: 80px; font-size: 0.9rem; text-align: center; outline: none; }
         
         .mod-tag { color: #00ff41; font-size: 0.65rem; font-weight: bold; margin-left: 2px; }
 
@@ -34,7 +34,6 @@
         .arb-card { border: 1px solid #444; background: #000; }
         .profit-card { border: 1px solid #333; background: #080808; }
         
-        /* Alert Styles */
         .alert-border { border-color: var(--magenta) !important; box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1); }
         .blink-magenta { color: var(--magenta) !important; animation: blink 0.6s infinite; font-weight: 900; }
 
@@ -54,8 +53,8 @@
 <body>
 
 <div class="header">
-    <h2 style="color: var(--glow); margin:0; font-size: 1.1rem;">ARB SENTRY - MAGENTA PRO</h2>
-    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Live Scanning...</div>
+    <h2 style="color: var(--glow); margin:0; font-size: 1.1rem;">ARB SENTRY - USDC SIMULATOR</h2>
+    <div id="status-msg" style="font-size: 0.7rem; color: #555;">Ready...</div>
 </div>
 
 <div class="controls">
@@ -65,8 +64,8 @@
         <span class="mod-tag">MODIFICABILE</span>
     </div>
     <div class="control-group">
-        <label>IMPORTA SOL</label>
-        <input type="number" id="sol-amount" value="1.0" step="0.1">
+        <label>SIMULA CON USDC:</label>
+        <input type="number" id="usdc-amount" value="100" step="10">
     </div>
     <div class="timer-container">
         <span id="timer-text">RE-RANK: 15s</span>
@@ -80,27 +79,18 @@
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     let mints = [];
     let timeLeft = 15;
-    let solPriceUsdc = 0;
-
-    async function updateSolPrice() {
-        try {
-            const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112');
-            const d = await r.json();
-            solPriceUsdc = parseFloat(d.pairs[0].priceUsd);
-        } catch(e) { solPriceUsdc = 150; } // Fallback
-    }
 
     function copyMint(text) {
         navigator.clipboard.writeText(text);
         const st = document.getElementById('status-msg');
-        st.innerText = "MINT COPIATO NEGLI APPUNTI!";
+        st.innerText = "MINT COPIATO!";
         st.style.color = "var(--magenta)";
-        setTimeout(() => { st.innerText = "Live Scanning..."; st.style.color = "#555"; }, 2500);
+        setTimeout(() => { st.innerText = "Ready..."; st.style.color = "#555"; }, 2000);
     }
 
     function getSwapUrl(dex, mint) {
-        if(dex === 'raydium') return `https://raydium.io/swap/?inputMint=sol&outputMint=${mint}`;
-        if(dex === 'orca') return `https://www.orca.so/?inputMint=sol&outputMint=${mint}`;
+        if(dex === 'raydium') return `https://raydium.io/swap/?inputMint=EPjFW3F2pjXYec7nCxoWzkFeUX2JwcL4Af9nR7Voc8f1&outputMint=${mint}`;
+        if(dex === 'orca') return `https://www.orca.so/?inputMint=EPjFW3F2pjXYec7nCxoWzkFeUX2JwcL4Af9nR7Voc8f1&outputMint=${mint}`;
         return `https://www.meteora.ag/pools`;
     }
 
@@ -113,9 +103,8 @@
     }
 
     async function scan() {
-        await updateSolPrice();
         const threshold = parseFloat(document.getElementById('threshold').value) || 1.0;
-        const simSol = parseFloat(document.getElementById('sol-amount').value) || 0;
+        const simUsdc = parseFloat(document.getElementById('usdc-amount').value) || 0;
         const grid = document.getElementById('main-grid');
         let results = [];
 
@@ -140,18 +129,16 @@
                     const minP = Math.min(...prices);
                     gap = ((maxP - minP) / minP) * 100;
 
-                    // CALCOLO PROFITTO SOLO SE SOPRA SOGLIA
-                    if (gap >= threshold && simSol > 0) {
-                        const investUsdc = simSol * solPriceUsdc;
-                        const tokensBought = (investUsdc * 0.997) / minP; // -0.3% fee buy
-                        const returnUsdc = (tokensBought * maxP) * 0.997; // -0.3% fee sell
-                        netProfit = returnUsdc - investUsdc;
+                    if (gap >= threshold && simUsdc > 0) {
+                        const tokensBought = (simUsdc * 0.997) / minP; 
+                        const returnUsdc = (tokensBought * maxP) * 0.997; 
+                        netProfit = returnUsdc - simUsdc;
                     }
                 }
 
                 results.push({
                     mint: mint,
-                    name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Unknown",
+                    name: pairs[0] ? `${pairs[0].baseToken.name} (${pairs[0].baseToken.symbol})` : "Token",
                     gap: gap,
                     profit: netProfit,
                     prices: activePrices
@@ -212,7 +199,7 @@
                     </div>
                 </div>`;
         });
-        document.getElementById('status-msg').innerText = "Last Update: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "Last update: " + new Date().toLocaleTimeString();
     }
 
     function timer() {
