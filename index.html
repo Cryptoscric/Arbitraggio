@@ -1,113 +1,224 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Sentry Pro - Debug Connection</title>
-    <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; }
-        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .header { border-bottom: 3px solid var(--glow); padding-bottom: 10px; margin-bottom: 20px; }
-        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; border: 1px solid #333; }
-        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        .token-section { background: var(--card); border: 1px solid #333; border-radius: 12px; padding: 15px; }
-        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
-        .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 15px; border-radius: 8px; text-align: center; color: white !important; }
-        .price { font-size: 1.3rem; font-weight: bold; display: block; margin: 5px 0; color: white !important; }
-        .status-tag { font-size: 0.7rem; color: #ffa500; background: #221100; padding: 2px 6px; border-radius: 4px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUMPER Terminal Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { 
+      --bg: #05060b; 
+      --card-bg: rgba(13, 17, 28, 0.7); 
+      --accent: #6bb6ff; 
+      --green: #4aff8a; 
+      --red: #ff5c5c; 
+      --border: rgba(255, 255, 255, 0.08); 
+    }
+    
+    body { 
+      background: radial-gradient(circle at top right, #1a1f35, #05060b 60%); 
+      color: #e2e8f0; 
+      font-family: 'Plus Jakarta Sans', sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      min-height: 100vh; 
+    }
+    
+    .menu { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 12px; z-index: 1000; padding: 15px 0; }
+    .pill { padding: 10px 22px; border: 1px solid var(--border); border-radius: 12px; color: #94a3b8; text-decoration: none; font-weight: 700; font-size: 13px; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); transition: 0.3s; }
+    .pill:hover, .pill.active { background: var(--accent); color: #000; border-color: #fff; box-shadow: 0 0 20px rgba(107, 182, 255, 0.4); }
+    
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 24px; backdrop-filter: blur(10px); transition: 0.3s; margin-bottom: 20px; }
+    .card:hover { border-color: var(--accent); }
+    
+    .value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 800; }
+    .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin-bottom: 15px; display: block; }
+    
+    .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    
+    table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+    th { padding: 12px; font-size: 12px; color: #64748b; text-align: left; }
+    td { padding: 16px; background: rgba(255,255,255,0.02); font-family: 'JetBrains Mono'; border-radius: 8px; }
+    
+    .green { color: var(--green); } 
+    .red { color: var(--red); }
+    .chart-container { width: 80px; height: 80px; position: relative; }
+    
+    @media (max-width: 900px) { .dashboard-grid, .dual-grid { grid-template-columns: 1fr; } }
+  </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 style="color: var(--glow); margin:0;">SOLANA POOL SENTRY</h1>
-    <div id="global-status" style="font-size:0.8rem; color:#888;">Inizializzazione...</div>
-</div>
+  <div class="menu">
+    <a href="index.html" class="pill active">TERMINAL</a>
+    <a href="vendita.html" class="pill">STRATEGY</a>
+    <a href="piano.html" class="pill">PLAN</a>
+    <a href="oracolo.html" class="pill" style="border-color: #a855f7; color: #a855f7;">ORACOLO</a>
+  </div>
 
-<div class="controls">
+  <header style="display:flex; align-items:center; gap:20px; margin-bottom:40px">
+    <div style="width:60px; height:60px; background: var(--accent); border-radius:15px; display:flex; align-items:center; justify-content:center; font-weight:900; color:#000; box-shadow: 0 0 30px rgba(107,182,255,0.2)">B</div>
     <div>
-        <label style="color:var(--glow)">TEST SOL:</label>
-        <input type="number" id="testAmount" value="0.5" step="0.1" style="background:#000; color:#fff; border:1px solid #555; padding:5px; width:60px;">
+      <h1 style="margin:0; font-size:32px; font-weight:900;">BUMPER <span style="color:var(--accent)">OS</span></h1>
+      <div style="font-size:12px; color:#64748b"><span id="live-indicator" style="color:var(--green)">●</span> LIVE MARKET DATA</div>
     </div>
-    <div style="flex-grow:1; text-align:right;">
-        <span id="timer" style="color:var(--glow)">Scan...</span>
+  </header>
+
+  <div class="dashboard-grid">
+    <div class="card">
+      <span class="section-title">Market Price</span>
+      <div id="price" class="value">$0.000000</div>
+      <div id="priceChange" style="font-weight:700; margin-top:5px">--%</div>
     </div>
-</div>
+    <div class="card">
+      <span class="section-title">Net Liquidity</span>
+      <div id="liquidity" class="value">$0</div>
+      <div id="fdv" style="font-size:12px; color:#64748b; margin-top:5px">FDV: --</div>
+    </div>
+    <div class="card">
+      <span class="section-title">Sentiment (Buys vs Sells)</span>
+      <div style="display:flex; align-items:center; gap:20px">
+        <div class="chart-container"><canvas id="pieChart"></canvas></div>
+        <div>
+          <div id="sentimentLabel" style="font-size:18px; font-weight:900">--</div>
+          <div id="bs-counts" style="font-size:11px; color:#64748b; font-family:'JetBrains Mono'"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div id="main-grid" class="grid"></div>
+  <div class="dual-grid">
+    <div class="card">
+      <span class="section-title">Volume Dynamics (24H)</span>
+      <div id="bs-details" style="font-size:13px; line-height:2.2; font-family:'JetBrains Mono'">Caricamento...</div>
+    </div>
+    <div class="card">
+      <span class="section-title">Projected Growth (Volume Weight)</span>
+      <div id="vol-projections" style="font-size:13px; line-height:2.2; font-family:'JetBrains Mono'">Analisi in corso...</div>
+    </div>
+  </div>
 
-<script>
-    const SOL = "So11111111111111111111111111111111111111112";
-    const DEXES = ["Jupiter", "Orca", "Meteora", "Raydium"];
-    let mints = [];
+  <div class="card">
+    <span class="section-title">DEX Execution Hub</span>
+    <table style="margin-top: 10px;">
+      <thead><tr><th>DEX</th><th>PAIR</th><th>PRICE</th><th>24H%</th><th>LIQUIDITY</th></tr></thead>
+      <tbody id="pairsTable"></tbody>
+    </table>
+  </div>
 
-    async function loadMints() {
-        try {
-            const r = await fetch('mint.txt?v=' + Date.now());
-            const text = await r.text();
-            return text.split(/\r?\n/).map(l => l.trim().split(/\s+/).pop()).filter(a => a.length > 30);
-        } catch (e) { return []; }
+  <script>
+    const TOKEN = "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk";
+    let state = { chart: null, price: 0, liq: 0 };
+
+    const fmtUsd = (v) => {
+      if (!v) return "$0";
+      return v < 1 ? "$" + v.toFixed(6) : "$" + Math.round(v).toLocaleString();
+    };
+
+    async function loadDex() {
+      try {
+        const r = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + TOKEN);
+        const d = await r.json();
+        if (!d.pairs || d.pairs.length === 0) return;
+
+        // Ordina per liquidità
+        const pairs = d.pairs.sort((a,b) => (b.liquidity?.usd||0) - (a.liquidity?.usd||0));
+        const best = pairs[0];
+        
+        state.price = +best.priceUsd;
+        state.liq = pairs.reduce((a,p) => a + (p.liquidity?.usd||0), 0);
+        let totalVol24 = pairs.reduce((a,p) => a + (p.volume?.h24||0), 0);
+
+        localStorage.setItem("globalPrice", state.price);
+        localStorage.setItem("globalLiquidity", state.liq);
+
+        // UI Updates
+        document.getElementById("price").textContent = "$" + state.price.toFixed(8);
+        document.getElementById("liquidity").textContent = fmtUsd(state.liq);
+        document.getElementById("priceChange").textContent = (best.priceChange?.h24 || 0) + "%";
+        document.getElementById("priceChange").className = (best.priceChange?.h24 || 0) >= 0 ? 'green' : 'red';
+        document.getElementById("fdv").textContent = "FDV: " + fmtUsd(best.fdv || 0);
+
+        // Aggregazione Buy/Sell
+        let B24 = 0, S24 = 0;
+        pairs.forEach(p => {
+          B24 += (p.txns?.h24?.buys || 0);
+          S24 += (p.txns?.h24?.sells || 0);
+        });
+
+        const totalTx = B24 + S24;
+        const buyRatio = totalTx > 0 ? B24 / totalTx : 0.5;
+        const volBuy = totalVol24 * buyRatio;
+        const volSell = totalVol24 * (1 - buyRatio);
+
+        updateSentiment(volBuy, volSell, B24, S24);
+        
+        document.getElementById("bs-details").innerHTML = `
+          BUY VOLUME: <span class="green">${fmtUsd(volBuy)}</span><br>
+          SELL VOLUME: <span class="red">${fmtUsd(volSell)}</span><br>
+          TOTAL VOLUME: <span style="color:#fff">${fmtUsd(totalVol24)}</span>
+        `;
+
+        // Proiezioni
+        const p = (h, mult) => {
+          let vTotal = totalVol24 * mult;
+          return `<b>${h}H Forecast:</b> <span class="green">▲ ${fmtUsd(vTotal * buyRatio)}</span> | <span class="red">▼ ${fmtUsd(vTotal * (1-buyRatio))}</span>`;
+        };
+        document.getElementById("vol-projections").innerHTML = `${p(24, 1)}<br>${p(48, 1.7)}<br>${p(72, 2.4)}<br>${p(96, 3.1)}`;
+
+        // Tabella coppie
+        document.getElementById("pairsTable").innerHTML = pairs.slice(0,5).map(p => `
+          <tr>
+            <td>${p.dexId.toUpperCase()}</td>
+            <td>${p.baseToken.symbol}/${p.quoteToken.symbol}</td>
+            <td>$${(+p.priceUsd).toFixed(6)}</td>
+            <td class="${(p.priceChange?.h24||0)>=0?'green':'red'}">${p.priceChange?.h24 || 0}%</td>
+            <td>${fmtUsd(p.liquidity?.usd || 0)}</td>
+          </tr>
+        `).join('');
+
+        // Effetto lampeggio su aggiornamento
+        const live = document.getElementById("live-indicator");
+        live.style.opacity = 0;
+        setTimeout(() => live.style.opacity = 1, 500);
+
+      } catch(e) { 
+        console.error("Fetch error", e);
+        document.getElementById("status-msg").innerHTML = "CONNECTION ERROR";
+      }
     }
 
-    async function getPrice(mint, amount) {
-        try {
-            const lamports = Math.floor(amount * 1e9);
-            // Proviamo a chiamare l'API v6 di Jupiter
-            const url = `https://quote-api.jup.ag/v6/quote?inputMint=${SOL}&outputMint=${SOL}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`;
-            const r = await fetch(url);
-            if (!r.ok) return { error: "HTTP " + r.status };
-            return await r.json();
-        } catch (e) {
-            return { error: "CORS / Network Error" };
+    function updateSentiment(volBuy, volSell, countBuy, countSell) {
+      const isBullish = volBuy > volSell;
+      document.getElementById("sentimentLabel").innerHTML = isBullish ? 
+        '<span class="green">BULLISH</span>' : '<span class="red">BEARISH</span>';
+      document.getElementById("bs-counts").innerHTML = `BUY TX: ${countBuy} | SELL TX: ${countSell}`;
+      
+      const ctx = document.getElementById('pieChart').getContext('2d');
+      if (state.chart) state.chart.destroy();
+      state.chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: [volBuy, volSell],
+            backgroundColor: ['#4aff8a', '#ff5c5c'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          cutout: '70%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          maintainAspectRatio: false,
+          animation: { duration: 800 }
         }
+      });
     }
 
-    async function update() {
-        const amount = parseFloat(document.getElementById('testAmount').value);
-        for (const mint of mints) {
-            let section = document.getElementById(mint);
-            if (!section) {
-                section = document.createElement('div');
-                section.id = mint;
-                section.className = 'token-section';
-                section.innerHTML = `<div>TOKEN: ${mint.substring(0,10)}... <span id="st-${mint}" class="status-tag">In attesa...</span></div><div class="dex-grid" id="grid-${mint}"></div>`;
-                document.getElementById('main-grid').appendChild(section);
-            }
-
-            const data = await getPrice(mint, amount);
-            const statusEl = document.getElementById(`st-${mint}`);
-            
-            if (data.error) {
-                statusEl.innerText = data.error;
-                statusEl.style.color = "#ff4444";
-            } else if (data.outAmount) {
-                statusEl.innerText = "Dati Ricevuti";
-                statusEl.style.color = var(--glow);
-                const price = data.outAmount / 1e9;
-                
-                // Aggiorna i riquadri
-                DEXES.forEach(dex => {
-                    let card = document.getElementById(`c-${mint}-${dex}`);
-                    if (!card) {
-                        card = document.createElement('div');
-                        card.id = `c-${mint}-${dex}`;
-                        card.className = 'dex-card';
-                        document.getElementById(`grid-${mint}`).appendChild(card);
-                    }
-                    card.innerHTML = `<small>${dex}</small><span class="price">${price.toFixed(5)}</span>`;
-                });
-            } else {
-                statusEl.innerText = "Nessuna Rotta (Poca Liquidità?)";
-            }
-        }
-    }
-
-    async function init() {
-        mints = await loadMints();
-        update();
-        setInterval(update, 15000);
-    }
-
-    init();
-</script>
+    loadDex();
+    setInterval(loadDex, 15000); // Aggiorna ogni 15 secondi
+  </script>
 </body>
 </html>
