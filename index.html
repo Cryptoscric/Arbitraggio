@@ -2,32 +2,53 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Solana Arb Sentry - Meta Edition</title>
+    <title>Solana Arb Sentry - Alert Edition</title>
     <style>
-        :root { --glow: #00ff41; --bg: #050505; --card: #141414; }
-        body { font-family: 'Consolas', monospace; background: var(--bg); color: #eee; margin: 0; padding: 20px; }
-        .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #eee; }
+        body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
+        .controls label { font-size: 0.9rem; color: var(--glow); }
+        .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 5px 10px; border-radius: 4px; font-family: monospace; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        
         .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; position: relative; }
-        .card.active { border-color: var(--glow); box-shadow: 0 0 20px rgba(0,255,65,0.3); background: #001a00; }
-        .token-header { display: flex; align-items: center; margin-bottom: 12px; }
+        /* Classe per l'evidenziazione dinamica */
+        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 25px rgba(0, 255, 65, 0.4); background: #001a00; transform: scale(1.02); }
+        
         .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
-        .token-symbol { color: #888; font-size: 0.8rem; margin-left: 8px; font-weight: normal; }
-        .mint-id { font-size: 0.65rem; color: #444; display: block; margin-top: 4px; }
+        .token-symbol { color: #888; font-size: 0.8rem; margin-left: 8px; }
+        .mint-id { font-size: 0.65rem; color: #444; display: block; margin-top: 5px; }
+        
         .pos { color: var(--glow); font-weight: bold; font-size: 1.4rem; }
         .neg { color: #ff3e3e; font-size: 1.4rem; }
+        
         .btn { display: block; text-align: center; padding: 12px; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 6px; margin-top: 15px; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: var(--glow); color: #000; }
-        #status { font-size: 0.9rem; color: #888; }
+        
+        #status { font-size: 0.8rem; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="header">
+    <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
+    <div id="status">Inizializzazione...</div>
+</div>
+
+<div class="controls">
     <div>
-        <h1 style="color: var(--glow); margin:0;">SOLANA ARB SENTRY</h1>
-        <div id="status">Inizializzazione...</div>
+        <label>TEST SIZE (SOL):</label>
+        <input type="number" id="testSize" value="5" step="1" style="width: 50px;">
     </div>
+    <div>
+        <label>SOGLIA ALERT (%):</label>
+        <input type="number" id="alertThreshold" value="0.01" step="0.005" style="width: 80px;">
+    </div>
+    <div style="font-size: 0.75rem; color: #888;">L'evidenziazione verde si attiva sopra la soglia indicata.</div>
 </div>
 
 <div id="dashboard" class="grid"></div>
@@ -36,51 +57,47 @@
 
 <script>
     const SOL_ADDR = "So11111111111111111111111111111111111111112";
-    let tokenMetadata = {}; 
+    let tokenMetadata = {};
 
-    // 1. Carica il file mint.txt locale (nella root di GitHub)
     async function loadMints() {
         try {
-            const r = await fetch('mint.txt?v=' + Date.now()); // Cache buster
+            const r = await fetch('mint.txt?v=' + Date.now());
             const text = await r.text();
-            // Pulisce il file da scritte extra come ""
+            // Pulisce gli indirizzi dal file caricato
             return text.split(/\r?\n/)
                        .map(line => line.trim().split(/\s+/).pop())
                        .filter(line => line && line.length > 30);
-        } catch (e) {
-            console.error("Errore caricamento mint.txt", e);
-            return [];
-        }
+        } catch (e) { return []; }
     }
 
-    // 2. Recupera i nomi reali da Jupiter API
     async function fetchMeta(mints) {
         try {
             const r = await fetch(`https://tokens.jup.ag/tokens?tokens=${mints.join(',')}`);
             const data = await r.json();
-            data.forEach(t => {
-                tokenMetadata[t.address] = { name: t.name, symbol: t.symbol };
-            });
-        } catch (e) { console.error("Errore metadati", e); }
+            data.forEach(t => { tokenMetadata[t.address] = { name: t.name, symbol: t.symbol }; });
+        } catch (e) { console.error("Errore Meta"); }
     }
 
     async function scan(mints) {
+        const size = parseFloat(document.getElementById('testSize').value) || 5;
+        const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
+        const lamports = size * 1000000000;
+
         for (const mint of mints) {
             try {
-                // Test con 5 SOL (Triangular Arb: SOL -> TOKEN -> SOL)
-                const r = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=5000000000&intermediateMint=${mint}&slippageBps=0`);
+                const r = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`);
                 const data = await r.json();
                 if (data && data.outAmount) {
-                    render(mint, data);
+                    render(mint, data, size, threshold);
                 }
-            } catch (e) { console.error("Errore quote:", mint); }
+            } catch (e) { console.error("Errore Quote"); }
         }
         document.getElementById('status').innerText = "Live Update: " + new Date().toLocaleTimeString();
     }
 
-    function render(mint, data) {
+    function render(mint, data, size, threshold) {
         const out = data.outAmount / 1e9;
-        const pct = ((out - 5) / 5) * 100;
+        const pct = ((out - size) / size) * 100;
         const meta = tokenMetadata[mint] || { name: "Token", symbol: "???" };
         
         let card = document.getElementById(mint);
@@ -91,24 +108,26 @@
             document.getElementById('dashboard').appendChild(card);
         }
 
-        const win = pct > 0.01;
-        card.classList.toggle('active', win);
-        if(win) document.getElementById('beep').play().catch(()=>{});
+        // Logica di evidenziazione basata sulla maschera
+        const isAlert = pct >= threshold;
+        card.classList.toggle('highlight', isAlert);
+        
+        if(isAlert) {
+            document.getElementById('beep').play().catch(()=>{});
+        }
 
         card.innerHTML = `
-            <div class="token-header">
-                <div>
-                    <span class="token-name">${meta.name}</span>
-                    <span class="token-symbol">${meta.symbol}</span>
-                    <span class="mint-id">${mint}</span>
-                </div>
+            <div class="token-info">
+                <span class="token-name">${meta.name}</span>
+                <span class="token-symbol">${meta.symbol}</span>
+                <span class="mint-id">${mint}</span>
             </div>
             <div class="${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
-            <div style="font-size:0.9rem; margin-top:10px; color:#aaa;">
-                Rendimento: <b style="color:#eee;">${out.toFixed(5)} SOL</b><br>
-                Price Impact: ${data.priceImpactPct}%
+            <div style="font-size:0.85rem; margin-top:10px; color:#aaa;">
+                In: ${size} SOL → Out: <b style="color:#fff;">${out.toFixed(5)}</b><br>
+                Impact: ${data.priceImpactPct}%
             </div>
-            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">ESEGUI ARB</a>
+            <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">SWAP ORA</a>
         `;
     }
 
@@ -117,9 +136,7 @@
         if (mints.length > 0) {
             await fetchMeta(mints);
             scan(mints);
-            setInterval(() => scan(mints), 10000); // Aggiorna ogni 10 secondi
-        } else {
-            document.getElementById('status').innerText = "Errore: mint.txt vuoto o non trovato.";
+            setInterval(() => scan(mints), 10000);
         }
     }
 
