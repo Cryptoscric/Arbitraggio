@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>SOLANA ARB SENTRY - Price Comparison</title>
+    <title>SOLANA ARB SENTRY - Triple Dex Mode</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; --red: #ff3333; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -19,18 +19,20 @@
         .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
         .token-header span:first-child { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
         
-        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
+        /* Griglia a 3 colonne visto che abbiamo rimosso Jupiter */
+        .dex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        @media (max-width: 900px) { .dex-grid { grid-template-columns: 1fr; } }
         
         .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 20px; border-radius: 10px; text-align: center; }
         
-        /* Classi dinamiche per i nomi */
-        .dex-name { font-size: 0.9rem; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; color: #ffffff; transition: 0.3s; }
+        .dex-name { font-size: 1rem; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; color: #ffffff; transition: 0.3s; }
         .dex-name.highest { color: var(--glow) !important; text-shadow: 0 0 10px var(--glow); }
         .dex-name.lowest { color: var(--red) !important; text-shadow: 0 0 10px var(--red); }
         
-        .price { font-size: 1.5rem; font-weight: 800; color: #ffffff !important; margin: 10px 0; display: block; }
-        .liq-info { font-size: 0.7rem; color: #666; margin-top: 5px; }
+        .price { font-size: 1.6rem; font-weight: 800; color: #ffffff !important; margin: 5px 0; display: block; }
+        
+        /* Stile Liquidità aggiornato */
+        .liq-info { font-size: 0.95rem; font-weight: 700; color: #ffffff !important; margin-top: 10px; display: block; border-top: 1px solid #333; padding-top: 8px; }
         .na-text { color: #444; font-weight: bold; margin-top: 15px; display: block; }
     </style>
 </head>
@@ -38,7 +40,7 @@
 
 <div class="header">
     <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY</h1>
-    <div id="status-msg" style="font-weight: bold; color: #888;">Scanning mint.txt...</div>
+    <div id="status-msg" style="font-weight: bold; color: #888;">Monitoring Pool Liquidity...</div>
 </div>
 
 <div class="controls">
@@ -51,7 +53,8 @@
 <div id="main-grid" class="grid"></div>
 
 <script>
-    const TARGET_DEX_IDS = ["raydium", "orca", "meteora", "jupiter"];
+    // Jupiter rimosso dalla lista
+    const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     let mints = [];
     let timeLeft = 15;
 
@@ -90,7 +93,6 @@
                 const dexGrid = document.getElementById('grid-' + mint);
                 const pairs = data.pairs || [];
                 
-                // Raccogliamo i prezzi validi per trovare min/max
                 let activePrices = [];
 
                 TARGET_DEX_IDS.forEach(dexName => {
@@ -98,7 +100,6 @@
                     if (pair) activePrices.push({ dex: dexName, price: parseFloat(pair.priceUsd) });
                 });
 
-                // Troviamo il valore più alto e più basso
                 let maxPrice = activePrices.length > 0 ? Math.max(...activePrices.map(o => o.price)) : 0;
                 let minPrice = activePrices.length > 0 ? Math.min(...activePrices.map(o => o.price)) : 0;
 
@@ -117,7 +118,6 @@
                         const currentPrice = parseFloat(pair.priceUsd);
                         let statusClass = "";
                         
-                        // Solo se ci sono almeno due prezzi diversi coloriamo
                         if (activePrices.length > 1 && maxPrice !== minPrice) {
                             if (currentPrice === maxPrice) statusClass = "highest";
                             else if (currentPrice === minPrice) statusClass = "lowest";
@@ -126,7 +126,7 @@
                         card.innerHTML = `
                             <div class="dex-name ${statusClass}">${dexName.toUpperCase()}</div>
                             <span class="price">$${currentPrice < 1 ? currentPrice.toFixed(6) : currentPrice.toFixed(2)}</span>
-                            <div class="liq-info">Liq: $${Math.round(pair.liquidity?.usd || 0).toLocaleString()}</div>
+                            <span class="liq-info">LIQ: $${Math.round(pair.liquidity?.usd || 0).toLocaleString()}</span>
                         `;
                     } else {
                         card.innerHTML = `
