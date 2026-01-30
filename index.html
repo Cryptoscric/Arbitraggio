@@ -2,50 +2,61 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>SOLANA ARB SENTRY - Triple Dex Mode</title>
+    <title>SOLANA ARB SENTRY - Pro Gap Alerts</title>
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #ffffff; --red: #ff3333; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
         .header { border-bottom: 3px solid var(--glow); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
         
+        .controls { background: #1a1a1a; padding: 15px 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 40px; align-items: center; }
+        .controls label { font-size: 0.85rem; font-weight: 800; color: var(--glow); text-transform: uppercase; letter-spacing: 1px; }
+        .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 8px; border-radius: 6px; width: 80px; font-size: 1rem; font-weight: bold; text-align: center; outline: none; }
+
         .timer-container { flex-grow: 1; text-align: right; }
         #timer-text { font-size: 1rem; font-weight: bold; color: var(--glow); display: block; margin-bottom: 5px; }
-        #countdown-bar { width: 100%; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
+        #countdown-bar { width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
         #progress { height: 100%; background: var(--glow); width: 100%; transition: width 1s linear; }
 
         .grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
         .token-section { background: var(--card); border: 1px solid #333; border-radius: 15px; padding: 20px; }
         .token-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 10px; margin-bottom: 20px; }
-        .token-header span:first-child { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
         
-        /* Griglia a 3 colonne visto che abbiamo rimosso Jupiter */
-        .dex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        @media (max-width: 900px) { .dex-grid { grid-template-columns: 1fr; } }
+        .dex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        @media (max-width: 900px) { .dex-grid { grid-template-columns: repeat(2, 1fr); } }
         
         .dex-card { background: #1f1f1f; border: 2px solid #444; padding: 20px; border-radius: 10px; text-align: center; }
-        
-        .dex-name { font-size: 1rem; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; color: #ffffff; transition: 0.3s; }
+        .arb-card { background: #0a0a0a; border: 2px solid #333; transition: 0.3s; }
+        .arb-card.alert-border { border-color: var(--glow); box-shadow: 0 0 15px rgba(0, 255, 65, 0.2); }
+
+        .dex-name { font-size: 1rem; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; color: #ffffff; }
         .dex-name.highest { color: var(--glow) !important; text-shadow: 0 0 10px var(--glow); }
         .dex-name.lowest { color: var(--red) !important; text-shadow: 0 0 10px var(--red); }
         
         .price { font-size: 1.6rem; font-weight: 800; color: #ffffff !important; margin: 5px 0; display: block; }
+        .gap-value { font-size: 1.8rem; font-weight: 900; color: #444; margin: 5px 0; display: block; }
         
-        /* Stile Liquidità aggiornato */
+        /* Effetto Blink */
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .blink { color: var(--glow) !important; text-shadow: 0 0 20px var(--glow); animation: blink 0.8s infinite; }
+
         .liq-info { font-size: 0.95rem; font-weight: 700; color: #ffffff !important; margin-top: 10px; display: block; border-top: 1px solid #333; padding-top: 8px; }
-        .na-text { color: #444; font-weight: bold; margin-top: 15px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <h1 style="color: var(--glow); margin:0; font-size: 1.8rem;">SOLANA ARB SENTRY</h1>
-    <div id="status-msg" style="font-weight: bold; color: #888;">Monitoring Pool Liquidity...</div>
+    <div id="status-msg" style="font-weight: bold; color: #888;">System Ready</div>
 </div>
 
 <div class="controls">
+    <div>
+        <label>Alert Threshold %</label>
+        <input type="number" id="threshold" value="1.0" step="0.1">
+    </div>
     <div class="timer-container">
-        <span id="timer-text">RELOAD IN: 15s</span>
+        <span id="timer-text">NEXT SCAN: 15s</span>
         <div id="countdown-bar"><div id="progress"></div></div>
     </div>
 </div>
@@ -53,7 +64,6 @@
 <div id="main-grid" class="grid"></div>
 
 <script>
-    // Jupiter rimosso dalla lista
     const TARGET_DEX_IDS = ["raydium", "orca", "meteora"];
     let mints = [];
     let timeLeft = 15;
@@ -69,6 +79,7 @@
     }
 
     async function scan() {
+        const threshold = parseFloat(document.getElementById('threshold').value) || 1.0;
         const grid = document.getElementById('main-grid');
 
         for (const mint of mints) {
@@ -94,7 +105,6 @@
                 const pairs = data.pairs || [];
                 
                 let activePrices = [];
-
                 TARGET_DEX_IDS.forEach(dexName => {
                     const pair = pairs.find(p => p.dexId.toLowerCase() === dexName.toLowerCase());
                     if (pair) activePrices.push({ dex: dexName, price: parseFloat(pair.priceUsd) });
@@ -103,6 +113,7 @@
                 let maxPrice = activePrices.length > 0 ? Math.max(...activePrices.map(o => o.price)) : 0;
                 let minPrice = activePrices.length > 0 ? Math.min(...activePrices.map(o => o.price)) : 0;
 
+                // Render DEX Cards
                 TARGET_DEX_IDS.forEach(dexName => {
                     let card = document.getElementById(`card-${mint}-${dexName}`);
                     if (!card) {
@@ -113,39 +124,57 @@
                     }
 
                     const pair = pairs.find(p => p.dexId.toLowerCase() === dexName.toLowerCase());
-
                     if (pair) {
                         const currentPrice = parseFloat(pair.priceUsd);
                         let statusClass = "";
-                        
                         if (activePrices.length > 1 && maxPrice !== minPrice) {
                             if (currentPrice === maxPrice) statusClass = "highest";
                             else if (currentPrice === minPrice) statusClass = "lowest";
                         }
-
                         card.innerHTML = `
                             <div class="dex-name ${statusClass}">${dexName.toUpperCase()}</div>
-                            <span class="price">$${currentPrice < 1 ? currentPrice.toFixed(6) : currentPrice.toFixed(2)}</span>
+                            <span class="price">$${currentPrice < 1 ? currentPrice.toFixed(6) : currentPrice.toFixed(4)}</span>
                             <span class="liq-info">LIQ: $${Math.round(pair.liquidity?.usd || 0).toLocaleString()}</span>
                         `;
                     } else {
-                        card.innerHTML = `
-                            <div class="dex-name">${dexName.toUpperCase()}</div>
-                            <span class="na-text">NO POOL</span>
-                        `;
+                        card.innerHTML = `<div class="dex-name">${dexName.toUpperCase()}</div><span style="color:#444; font-weight:bold; margin-top:15px; display:block;">NO POOL</span>`;
                     }
                 });
 
+                // Render ARB GAP Card with Blink logic
+                let gapCard = document.getElementById(`card-${mint}-gap`);
+                if (!gapCard) {
+                    gapCard = document.createElement('div');
+                    gapCard.id = `card-${mint}-gap`;
+                    gapCard.className = 'dex-card arb-card';
+                    dexGrid.appendChild(gapCard);
+                }
+
+                if (activePrices.length > 1) {
+                    const gapPct = ((maxPrice - minPrice) / minPrice) * 100;
+                    const isAlert = gapPct >= threshold;
+                    
+                    gapCard.classList.toggle('alert-border', isAlert);
+                    gapCard.innerHTML = `
+                        <div class="dex-name" style="color:${isAlert ? 'var(--glow)' : '#666'}">ARB GAP %</div>
+                        <span class="gap-value ${isAlert ? 'blink' : ''}">${gapPct.toFixed(2)}%</span>
+                        <span class="liq-info" style="color:#444 !important">LIMIT: ${threshold}%</span>
+                    `;
+                } else {
+                    gapCard.classList.remove('alert-border');
+                    gapCard.innerHTML = `<div class="dex-name" style="color:#333">ARB GAP %</div><span style="color:#333; font-weight:bold; margin-top:15px; display:block;">WAITING...</span>`;
+                }
+
             } catch (e) { console.error(e); }
         }
-        document.getElementById('status-msg').innerText = "LIVE: " + new Date().toLocaleTimeString();
+        document.getElementById('status-msg').innerText = "LAST SCAN: " + new Date().toLocaleTimeString();
     }
 
     function startTimer() {
         setInterval(() => {
             timeLeft--;
             document.getElementById('progress').style.width = (timeLeft / 15 * 100) + "%";
-            document.getElementById('timer-text').innerText = `RELOAD IN: ${timeLeft}s`;
+            document.getElementById('timer-text').innerText = `NEXT SCAN: ${timeLeft}s`;
             if (timeLeft <= 0) { timeLeft = 15; scan(); }
         }, 1000);
     }
