@@ -6,29 +6,20 @@
     <style>
         :root { --glow: #00ff41; --bg: #050505; --card: #141414; --text: #eee; }
         body { font-family: 'Consolas', monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
         .header { border-bottom: 2px solid var(--glow); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        
-        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; }
+        .controls { background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #333; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
         .controls label { font-size: 0.9rem; color: var(--glow); }
-        .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 5px 10px; border-radius: 4px; font-family: monospace; }
-
+        .controls input { background: #000; color: var(--glow); border: 1px solid var(--glow); padding: 5px 10px; border-radius: 4px; font-family: monospace; width: 80px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
-        
         .card { background: var(--card); border: 1px solid #333; padding: 20px; border-radius: 12px; transition: 0.3s; position: relative; }
-        /* Classe per l'evidenziazione dinamica */
-        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 25px rgba(0, 255, 65, 0.4); background: #001a00; transform: scale(1.02); }
-        
-        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; }
-        .token-symbol { color: #888; font-size: 0.8rem; margin-left: 8px; }
-        .mint-id { font-size: 0.65rem; color: #444; display: block; margin-top: 5px; }
-        
+        .card.highlight { border: 2px solid var(--glow); box-shadow: 0 0 25px rgba(0, 255, 65, 0.4); background: #001a00; transform: scale(1.02); z-index: 10; }
+        .token-name { color: var(--glow); font-size: 1.1rem; font-weight: bold; display: block; }
+        .token-symbol { color: #888; font-size: 0.8rem; margin-bottom: 5px; display: block; }
+        .mint-id { font-size: 0.65rem; color: #444; display: block; margin-top: 5px; word-break: break-all; }
         .pos { color: var(--glow); font-weight: bold; font-size: 1.4rem; }
         .neg { color: #ff3e3e; font-size: 1.4rem; }
-        
         .btn { display: block; text-align: center; padding: 12px; color: var(--glow); border: 1px solid var(--glow); text-decoration: none; border-radius: 6px; margin-top: 15px; font-weight: bold; transition: 0.2s; }
         .btn:hover { background: var(--glow); color: #000; }
-        
         #status { font-size: 0.8rem; color: #666; }
     </style>
 </head>
@@ -41,14 +32,14 @@
 
 <div class="controls">
     <div>
-        <label>TEST SIZE (SOL):</label>
-        <input type="number" id="testSize" value="5" step="1" style="width: 50px;">
+        <label>TEST (SOL):</label>
+        <input type="number" id="testSize" value="5" step="1">
     </div>
     <div>
         <label>SOGLIA ALERT (%):</label>
-        <input type="number" id="alertThreshold" value="0.01" step="0.005" style="width: 80px;">
+        <input type="number" id="alertThreshold" value="0.01" step="0.005">
     </div>
-    <div style="font-size: 0.75rem; color: #888;">L'evidenziazione verde si attiva sopra la soglia indicata.</div>
+    <div style="font-size: 0.75rem; color: #888;">L'evidenziazione e il suono si attivano sopra la soglia.</div>
 </div>
 
 <div id="dashboard" class="grid"></div>
@@ -57,17 +48,31 @@
 
 <script>
     const SOL_ADDR = "So11111111111111111111111111111111111111112";
+    
+    // Lista di emergenza se il file mint.txt fallisce
+    const FALLBACK_MINTS = [
+        "9JK2U7aEkp3tWaFNuaJowWRgNys5DVaKGxWk73VT5ray",
+        "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk",
+        "GnYufMbTAMz1DzkSN2DmwkBzjMTLkM22WvQuN1VCbonk",
+        "A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS"
+    ];
+
+    let currentMints = [];
     let tokenMetadata = {};
 
     async function loadMints() {
         try {
-            const r = await fetch('mint.txt?v=' + Date.now());
+            const r = await fetch('mint.txt?t=' + Date.now());
+            if (!r.ok) throw new Error();
             const text = await r.text();
-            // Pulisce gli indirizzi dal file caricato
-            return text.split(/\r?\n/)
-                       .map(line => line.trim().split(/\s+/).pop())
-                       .filter(line => line && line.length > 30);
-        } catch (e) { return []; }
+            const lines = text.split(/\r?\n/)
+                              .map(l => l.trim().split(/\s+/).pop())
+                              .filter(l => l.length > 30);
+            return lines.length > 0 ? lines : FALLBACK_MINTS;
+        } catch (e) {
+            console.log("Utilizzo token predefiniti");
+            return FALLBACK_MINTS;
+        }
     }
 
     async function fetchMeta(mints) {
@@ -75,22 +80,22 @@
             const r = await fetch(`https://tokens.jup.ag/tokens?tokens=${mints.join(',')}`);
             const data = await r.json();
             data.forEach(t => { tokenMetadata[t.address] = { name: t.name, symbol: t.symbol }; });
-        } catch (e) { console.error("Errore Meta"); }
+        } catch (e) { console.error("Errore metadati"); }
     }
 
-    async function scan(mints) {
+    async function scan() {
         const size = parseFloat(document.getElementById('testSize').value) || 5;
         const threshold = parseFloat(document.getElementById('alertThreshold').value) || 0.01;
         const lamports = size * 1000000000;
 
-        for (const mint of mints) {
+        for (const mint of currentMints) {
             try {
                 const r = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${SOL_ADDR}&outputMint=${SOL_ADDR}&amount=${lamports}&intermediateMint=${mint}&slippageBps=0`);
                 const data = await r.json();
                 if (data && data.outAmount) {
                     render(mint, data, size, threshold);
                 }
-            } catch (e) { console.error("Errore Quote"); }
+            } catch (e) { console.error("Errore quote:", mint); }
         }
         document.getElementById('status').innerText = "Live Update: " + new Date().toLocaleTimeString();
     }
@@ -98,7 +103,7 @@
     function render(mint, data, size, threshold) {
         const out = data.outAmount / 1e9;
         const pct = ((out - size) / size) * 100;
-        const meta = tokenMetadata[mint] || { name: "Token", symbol: "???" };
+        const meta = tokenMetadata[mint] || { name: "Unknown", symbol: "???" };
         
         let card = document.getElementById(mint);
         if (!card) {
@@ -108,36 +113,28 @@
             document.getElementById('dashboard').appendChild(card);
         }
 
-        // Logica di evidenziazione basata sulla maschera
         const isAlert = pct >= threshold;
         card.classList.toggle('highlight', isAlert);
-        
-        if(isAlert) {
-            document.getElementById('beep').play().catch(()=>{});
-        }
+        if(isAlert) document.getElementById('beep').play().catch(()=>{});
 
         card.innerHTML = `
-            <div class="token-info">
-                <span class="token-name">${meta.name}</span>
-                <span class="token-symbol">${meta.symbol}</span>
-                <span class="mint-id">${mint}</span>
-            </div>
+            <span class="token-name">${meta.name}</span>
+            <span class="token-symbol">${meta.symbol}</span>
             <div class="${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%</div>
             <div style="font-size:0.85rem; margin-top:10px; color:#aaa;">
                 In: ${size} SOL → Out: <b style="color:#fff;">${out.toFixed(5)}</b><br>
-                Impact: ${data.priceImpactPct}%
+                Price Impact: ${data.priceImpactPct || 0}%
             </div>
+            <span class="mint-id">${mint}</span>
             <a href="https://jup.ag/swap/SOL-${mint}-SOL" target="_blank" class="btn">SWAP ORA</a>
         `;
     }
 
     async function init() {
-        const mints = await loadMints();
-        if (mints.length > 0) {
-            await fetchMeta(mints);
-            scan(mints);
-            setInterval(() => scan(mints), 10000);
-        }
+        currentMints = await loadMints();
+        await fetchMeta(currentMints);
+        scan();
+        setInterval(scan, 8000);
     }
 
     init();
